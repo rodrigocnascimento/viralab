@@ -3,7 +3,7 @@ import { YouTubeDataApiGateway, YOUTUBE_QUOTA_COST } from './index.js';
 
 describe('YouTubeDataApiGateway', () => {
   it('maps search.list results into Viralab discovery data', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+    const fetchMock = vi.fn(async (_input: URL | RequestInfo, _init?: RequestInit) => new Response(JSON.stringify({
       nextPageToken: 'next',
       items: [{
         id: { videoId: 'video-1' },
@@ -34,7 +34,7 @@ describe('YouTubeDataApiGateway', () => {
   });
 
   it('classifies quota exhaustion as non-retryable', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+    const fetchMock = vi.fn(async (_input: URL | RequestInfo, _init?: RequestInit) => new Response(JSON.stringify({
       error: { message: 'quota exhausted', errors: [{ reason: 'quotaExceeded' }] },
     }), { status: 403, headers: { 'content-type': 'application/json' } }));
 
@@ -47,7 +47,7 @@ describe('YouTubeDataApiGateway', () => {
   });
 
   it('classifies provider 5xx as retryable', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: { message: 'unavailable' } }), {
+    const fetchMock = vi.fn(async (_input: URL | RequestInfo, _init?: RequestInit) => new Response(JSON.stringify({ error: { message: 'unavailable' } }), {
       status: 503,
       headers: { 'content-type': 'application/json' },
     }));
