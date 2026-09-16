@@ -10,6 +10,7 @@ type Env = {
   DATABASE_URL?: string;
   HYPERDRIVE?: { connectionString: string };
   DISCOVERY_QUEUE: QueueProducer;
+  CORS_ALLOWED_ORIGINS?: string;
 };
 
 const databaseUrl = (env: Env): string => {
@@ -17,6 +18,12 @@ const databaseUrl = (env: Env): string => {
   if (!value) throw new Error('HYPERDRIVE or DATABASE_URL must be configured');
   return value;
 };
+
+const allowedOrigins = (env: Env): string[] =>
+  (env.CORS_ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -28,6 +35,7 @@ export default {
         pingDatabase: () => repository.ping(),
         recordSearchPerformed: (input) => repository.recordSearchPerformed(input),
         enqueue: (message) => env.DISCOVERY_QUEUE.send(message),
+        allowedOrigins: allowedOrigins(env),
       });
     } finally {
       await database.close();
