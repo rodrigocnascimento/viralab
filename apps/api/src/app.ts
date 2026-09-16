@@ -14,11 +14,11 @@ export interface DiscoveryApiDeps {
   randomUUID?: () => string;
 }
 
-const json = (body: unknown, status = 200, headers?: HeadersInit): Response =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json; charset=utf-8', ...headers },
-  });
+const json = (body: unknown, status = 200, headers?: HeadersInit): Response => {
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set('content-type', 'application/json; charset=utf-8');
+  return new Response(JSON.stringify(body), { status, headers: responseHeaders });
+};
 
 export const handleRequest = async (request: Request, deps: DiscoveryApiDeps): Promise<Response> => {
   const url = new URL(request.url);
