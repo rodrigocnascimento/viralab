@@ -34,7 +34,17 @@ jobs:
         run: pnpm lint
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: |
+          set -o pipefail
+          pnpm typecheck 2>&1 | tee typecheck.log
+
+      - name: Upload typecheck diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: typecheck-diagnostics
+          path: typecheck.log
+          if-no-files-found: ignore
 
       - name: Test
         run: pnpm test
