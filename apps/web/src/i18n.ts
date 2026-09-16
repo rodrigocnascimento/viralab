@@ -23,8 +23,9 @@ export const messages = {
 
 export type SupportedLocale = keyof typeof messages;
 
-export function resolveBrowserLocale(languages: readonly string[] = navigator.languages): SupportedLocale {
-  return languages.some((language) => language.toLowerCase() === 'pt-br') ? 'pt-BR' : 'en';
+export function resolveBrowserLocale(languages?: readonly string[]): SupportedLocale {
+  const preferredLanguages = languages ?? (typeof navigator !== 'undefined' ? navigator.languages : []);
+  return preferredLanguages.some((language) => language.toLowerCase() === 'pt-br') ? 'pt-BR' : 'en';
 }
 
 export const i18n = createI18n({
