@@ -51,6 +51,16 @@ export class DiscoveryRepository {
     publishedAt?: Date | null;
     discoveredAt: Date;
   }): Promise<string> {
+    const updates: Partial<typeof channels.$inferInsert> = {
+      title: input.title,
+      lastDiscoveredAt: input.discoveredAt,
+      updatedAt: input.discoveredAt,
+    };
+
+    if (input.description !== undefined) updates.description = input.description;
+    if (input.thumbnailUrl !== undefined) updates.thumbnailUrl = input.thumbnailUrl;
+    if (input.publishedAt !== undefined) updates.publishedAt = input.publishedAt;
+
     const [row] = await this.db
       .insert(channels)
       .values({
@@ -65,14 +75,7 @@ export class DiscoveryRepository {
       })
       .onConflictDoUpdate({
         target: channels.youtubeId,
-        set: {
-          title: input.title,
-          description: input.description ?? null,
-          thumbnailUrl: input.thumbnailUrl ?? null,
-          publishedAt: input.publishedAt ?? null,
-          lastDiscoveredAt: input.discoveredAt,
-          updatedAt: input.discoveredAt,
-        },
+        set: updates,
       })
       .returning({ id: channels.id });
 
@@ -89,6 +92,17 @@ export class DiscoveryRepository {
     publishedAt?: Date | null;
     discoveredAt: Date;
   }): Promise<string> {
+    const updates: Partial<typeof videos.$inferInsert> = {
+      channelId: input.channelId,
+      title: input.title,
+      lastDiscoveredAt: input.discoveredAt,
+      updatedAt: input.discoveredAt,
+    };
+
+    if (input.description !== undefined) updates.description = input.description;
+    if (input.thumbnailUrl !== undefined) updates.thumbnailUrl = input.thumbnailUrl;
+    if (input.publishedAt !== undefined) updates.publishedAt = input.publishedAt;
+
     const [row] = await this.db
       .insert(videos)
       .values({
@@ -104,15 +118,7 @@ export class DiscoveryRepository {
       })
       .onConflictDoUpdate({
         target: videos.youtubeId,
-        set: {
-          channelId: input.channelId,
-          title: input.title,
-          description: input.description ?? null,
-          thumbnailUrl: input.thumbnailUrl ?? null,
-          publishedAt: input.publishedAt ?? null,
-          lastDiscoveredAt: input.discoveredAt,
-          updatedAt: input.discoveredAt,
-        },
+        set: updates,
       })
       .returning({ id: videos.id });
 
