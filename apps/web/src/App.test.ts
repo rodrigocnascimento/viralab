@@ -1,22 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { messages, resolveBrowserLocale } from './i18n';
 
-const app = readFileSync(new URL('./App.vue', import.meta.url), 'utf8');
-
-describe('Viralab landing page', () => {
-  it('communicates the product positioning', () => {
-    expect(app).toContain('YOUTUBE OPPORTUNITY INTELLIGENCE');
-    expect(app).toContain('Find the next viral');
+describe('Viralab landing page i18n', () => {
+  it('communicates the product positioning in English', () => {
+    expect(messages.en.hero.eyebrow).toBe('YOUTUBE OPPORTUNITY INTELLIGENCE');
+    expect(messages.en.hero.title).toContain('Find the next viral');
   });
 
-  it('presents the three initial opportunity signals', () => {
-    expect(app).toContain('Breakout Channels');
-    expect(app).toContain('Video Outliers');
-    expect(app).toContain('Niche Opportunities');
+  it('ships the initial opportunity signals in both locales', () => {
+    expect(messages.en.opportunities.breakoutTitle).toBe('Breakout Channels');
+    expect(messages.en.opportunities.outlierTitle).toBe('Video Outliers');
+    expect(messages['pt-BR'].opportunities.nicheTitle).toBe('Oportunidades de Nicho');
   });
 
-  it('explains the historical-data advantage', () => {
-    expect(app).toContain("We're building the history");
-    expect(app).toContain('Opportunity Engine');
+  it('resolves Brazilian Portuguese and falls back to English', () => {
+    expect(resolveBrowserLocale(['pt-BR', 'en-US'])).toBe('pt-BR');
+    expect(resolveBrowserLocale(['en-US'])).toBe('en');
+    expect(resolveBrowserLocale(['es-ES'])).toBe('en');
   });
 });
