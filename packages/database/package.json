@@ -10,8 +10,8 @@
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
-    "migrate": "tsx src/migrate.ts",
-    "migration:revert": "tsx src/revert.ts"
+    "migrate": "tsx --env-file=../../.env src/migrate.ts",
+    "migration:revert": "tsx --env-file=../../.env src/revert.ts"
   },
   "dependencies": {
     "pg": "^8.16.3",
