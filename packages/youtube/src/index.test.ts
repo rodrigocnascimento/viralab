@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { YouTubeDataApiGateway, YouTubeGatewayError, YOUTUBE_QUOTA_COST } from './index.js';
+import { YouTubeDataApiGateway, YOUTUBE_QUOTA_COST } from './index.js';
 
 describe('YouTubeDataApiGateway', () => {
   it('maps search.list results into Viralab discovery data', async () => {
@@ -39,7 +39,7 @@ describe('YouTubeDataApiGateway', () => {
     }), { status: 403, headers: { 'content-type': 'application/json' } })) as typeof fetch;
 
     const gateway = new YouTubeDataApiGateway('secret', fetcher);
-    await expect(gateway.searchVideos({ query: 'homelab', maxResults: 25 })).rejects.toMatchObject<Partial<YouTubeGatewayError>>({
+    await expect(gateway.searchVideos({ query: 'homelab', maxResults: 25 })).rejects.toMatchObject({
       name: 'YouTubeGatewayError',
       kind: 'quota_exhausted',
       retryable: false,
