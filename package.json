@@ -5,9 +5,9 @@
   "packageManager": "pnpm@10.15.1",
   "engines": { "node": ">=22" },
   "scripts": {
-    "build:libs": "pnpm --filter @viralab/shared build && pnpm --filter @viralab/database build",
+    "build:libs": "pnpm --filter @viralab/shared build && pnpm --filter @viralab/database build && pnpm --filter @viralab/youtube build",
     "predev": "pnpm build:libs",
-    "dev": "pnpm --parallel --filter @viralab/api --filter @viralab/web --filter @viralab/worker dev",
+    "dev": "pnpm --parallel --filter @viralab/api --filter @viralab/web --filter @viralab/discovery dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "pretypecheck": "pnpm build:libs",
@@ -15,7 +15,7 @@
     "pretest": "pnpm build:libs",
     "test": "pnpm -r test",
     "db:migrate": "pnpm --filter @viralab/database migrate",
-    "db:revert": "pnpm --filter @viralab/database migration:revert"
+    "db:generate": "pnpm --filter @viralab/database generate"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
