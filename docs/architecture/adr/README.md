@@ -18,6 +18,7 @@ Accepted ADRs are not rewritten to hide history. If a decision changes materiall
 | [ADR-004](./004-drizzle.md) | Replace TypeORM with Drizzle | Accepted |
 | [ADR-005](./005-scheduler-processing-separation.md) | Separate scheduling from discovery processing | Accepted |
 | [ADR-006](./006-historical-snapshots.md) | Treat historical snapshots as immutable analytical source data | Accepted |
+| [ADR-007](./007-analytics-instrumentation-boundaries.md) | Separate infrastructure observability, product analytics, and Business Intelligence | Accepted |
 
 ## When an ADR is required
 
