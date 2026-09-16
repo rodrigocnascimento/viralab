@@ -6,6 +6,8 @@ const fixedIds = [
   '22222222-2222-4222-8222-222222222222',
 ];
 
+const allowedOrigins = ['https://app.viralab.example'];
+
 describe('discovery API', () => {
   it('accepts a normalized asynchronous discovery and records BI intent', async () => {
     const recordSearchPerformed = vi.fn(async () => undefined);
@@ -15,19 +17,24 @@ describe('discovery API', () => {
     const response = await handleRequest(
       new Request('https://api.example.com/api/v1/discoveries', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          origin: allowedOrigins[0]!,
+        },
         body: JSON.stringify({ query: '  HomeLab   Servers ' }),
       }),
       {
         pingDatabase: async () => undefined,
         recordSearchPerformed,
         enqueue,
+        allowedOrigins,
         now: () => new Date('2026-09-16T12:00:00.000Z'),
         randomUUID: () => fixedIds[index++]!,
       },
     );
 
     expect(response.status).toBe(202);
+    expect(response.headers.get('access-control-allow-origin')).toBe(allowedOrigins[0]);
     await expect(response.json()).resolves.toEqual({
       id: fixedIds[0],
       status: 'accepted',
@@ -46,6 +53,48 @@ describe('discovery API', () => {
       query: 'homelab servers',
       requestedAt: '2026-09-16T12:00:00.000Z',
     });
+  });
+
+  it('handles preflight for an allowed origin', async () => {
+    const response = await handleRequest(
+      new Request('https://api.example.com/api/v1/discoveries', {
+        method: 'OPTIONS',
+        headers: {
+          origin: allowedOrigins[0]!,
+          'access-control-request-method': 'POST',
+          'access-control-request-headers': 'content-type',
+        },
+      }),
+      {
+        pingDatabase: async () => undefined,
+        recordSearchPerformed: async () => undefined,
+        enqueue: async () => undefined,
+        allowedOrigins,
+      },
+    );
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get('access-control-allow-origin')).toBe(allowedOrigins[0]);
+    expect(response.headers.get('access-control-allow-methods')).toContain('POST');
+    expect(response.headers.get('access-control-allow-headers')).toBe('content-type');
+  });
+
+  it('rejects preflight from an untrusted origin', async () => {
+    const response = await handleRequest(
+      new Request('https://api.example.com/api/v1/discoveries', {
+        method: 'OPTIONS',
+        headers: { origin: 'https://evil.example' },
+      }),
+      {
+        pingDatabase: async () => undefined,
+        recordSearchPerformed: async () => undefined,
+        enqueue: async () => undefined,
+        allowedOrigins,
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get('access-control-allow-origin')).toBeNull();
   });
 
   it('rejects an empty query', async () => {
