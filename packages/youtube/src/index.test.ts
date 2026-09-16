@@ -3,7 +3,7 @@ import { YouTubeDataApiGateway, YOUTUBE_QUOTA_COST } from './index.js';
 
 describe('YouTubeDataApiGateway', () => {
   it('maps search.list results into Viralab discovery data', async () => {
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
       nextPageToken: 'next',
       items: [{
         id: { videoId: 'video-1' },
@@ -16,9 +16,9 @@ describe('YouTubeDataApiGateway', () => {
           thumbnails: { high: { url: 'https://img.example/high.jpg' } },
         },
       }],
-    }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+    }), { status: 200, headers: { 'content-type': 'application/json' } }));
 
-    const gateway = new YouTubeDataApiGateway('secret', fetcher);
+    const gateway = new YouTubeDataApiGateway('secret', fetchMock as unknown as typeof fetch);
     const result = await gateway.searchVideos({ query: 'homelab', maxResults: 25 });
 
     expect(result.quotaCost).toBe(YOUTUBE_QUOTA_COST.searchList);
@@ -27,18 +27,18 @@ describe('YouTubeDataApiGateway', () => {
     expect(result.items[0]?.channel).toEqual({ youtubeId: 'channel-1', title: 'Homelab Channel' });
     expect(result.items[0]?.video.youtubeId).toBe('video-1');
 
-    const url = new URL(String(fetcher.mock.calls[0]?.[0]));
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
     expect(url.searchParams.get('type')).toBe('video');
     expect(url.searchParams.get('part')).toBe('snippet');
     expect(url.searchParams.get('q')).toBe('homelab');
   });
 
   it('classifies quota exhaustion as non-retryable', async () => {
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
       error: { message: 'quota exhausted', errors: [{ reason: 'quotaExceeded' }] },
-    }), { status: 403, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+    }), { status: 403, headers: { 'content-type': 'application/json' } }));
 
-    const gateway = new YouTubeDataApiGateway('secret', fetcher);
+    const gateway = new YouTubeDataApiGateway('secret', fetchMock as unknown as typeof fetch);
     await expect(gateway.searchVideos({ query: 'homelab', maxResults: 25 })).rejects.toMatchObject({
       name: 'YouTubeGatewayError',
       kind: 'quota_exhausted',
@@ -47,12 +47,12 @@ describe('YouTubeDataApiGateway', () => {
   });
 
   it('classifies provider 5xx as retryable', async () => {
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: { message: 'unavailable' } }), {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: { message: 'unavailable' } }), {
       status: 503,
       headers: { 'content-type': 'application/json' },
-    })) as typeof fetch;
+    }));
 
-    const gateway = new YouTubeDataApiGateway('secret', fetcher);
+    const gateway = new YouTubeDataApiGateway('secret', fetchMock as unknown as typeof fetch);
     await expect(gateway.searchVideos({ query: 'homelab', maxResults: 25 })).rejects.toMatchObject({
       kind: 'provider_unavailable',
       retryable: true,
