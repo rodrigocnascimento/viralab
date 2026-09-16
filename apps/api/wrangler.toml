@@ -1,0 +1,13 @@
+name = "viralab-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-16"
+compatibility_flags = ["nodejs_compat"]
+
+[[queues.producers]]
+binding = "DISCOVERY_QUEUE"
+queue = "viralab-discovery"
+
+# Configure before deploy:
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "<hyperdrive-config-id>"
