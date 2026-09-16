@@ -1,0 +1,16 @@
+{
+  "name": "@viralab/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./dist/index.js" },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": { "zod": "^4.1.5" },
+  "devDependencies": { "@types/node": "^24.3.1", "vitest": "^3.2.4" }
+}
