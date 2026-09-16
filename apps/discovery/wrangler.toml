@@ -1,0 +1,25 @@
+name = "viralab-discovery"
+main = "src/index.ts"
+compatibility_date = "2026-09-16"
+compatibility_flags = ["nodejs_compat"]
+
+[[queues.consumers]]
+queue = "viralab-discovery"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "viralab-discovery-dlq"
+
+[vars]
+YOUTUBE_MAX_RESULTS = "25"
+
+# Configure in Cloudflare before deploy:
+# - Queue: viralab-discovery
+# - Dead-letter queue: viralab-discovery-dlq
+#
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = "<hyperdrive-config-id>"
+#
+# Secrets:
+# wrangler secret put YOUTUBE_API_KEY

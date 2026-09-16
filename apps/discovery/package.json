@@ -1,5 +1,5 @@
 {
-  "name": "@viralab/api",
+  "name": "@viralab/discovery",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@viralab/database": "workspace:*",
-    "@viralab/shared": "workspace:*"
+    "@viralab/shared": "workspace:*",
+    "@viralab/youtube": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^3.2.4",

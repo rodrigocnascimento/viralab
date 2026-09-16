@@ -1,21 +1,17 @@
 {
-  "name": "@viralab/api",
+  "name": "@viralab/youtube",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": { ".": "./dist/index.js" },
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "dev": "wrangler dev",
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
-  "dependencies": {
-    "@viralab/database": "workspace:*",
-    "@viralab/shared": "workspace:*"
-  },
   "devDependencies": {
-    "vitest": "^3.2.4",
-    "wrangler": "^4.35.0"
+    "vitest": "^3.2.4"
   }
 }
