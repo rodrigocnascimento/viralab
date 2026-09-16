@@ -2,11 +2,10 @@ import cors from '@fastify/cors';
 import { createDataSource } from '@viralab/database';
 import type { ApiEnv } from '@viralab/shared';
 import Fastify from 'fastify';
-import type { DataSource } from 'typeorm';
 
 export const buildApp = async (env: ApiEnv) => {
   const app = Fastify({ logger: env.NODE_ENV !== 'test' });
-  let dataSource: DataSource | undefined;
+  let dataSource: ReturnType<typeof createDataSource> | undefined;
 
   await app.register(cors, { origin: env.WEB_ORIGIN });
 
