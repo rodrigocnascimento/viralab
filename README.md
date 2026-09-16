@@ -2,7 +2,7 @@
 
 Viralab is a YouTube Opportunity Intelligence platform focused on detecting promising channels and videos before their growth becomes obvious.
 
-This repository currently contains **Case 01 — Foundation**. YouTube-specific discovery and analytics are intentionally not implemented yet.
+This repository contains the **Case 01 — Foundation** and the **Case 01.1 — Landing Page**. YouTube-specific discovery and analytics are intentionally not implemented yet.
 
 ## Requirements
 
@@ -25,7 +25,9 @@ Open:
 - Web: http://localhost:5173
 - API health: http://localhost:3000/health
 
-The home page calls the API health endpoint and displays API/PostgreSQL status. The worker starts a BullMQ worker and reports Redis connectivity in its logs.
+The web app serves the product landing page and does not depend on the API yet. Use the API health endpoint directly to confirm API/PostgreSQL health. The worker starts a BullMQ worker and reports Redis connectivity in its logs.
+
+The landing page is internationalized with English and Brazilian Portuguese. It selects the locale from the browser language preferences and falls back to English.
 
 ## Workspace
 
@@ -80,4 +82,4 @@ See `docs/architecture/foundation.md` for Case 01 decisions and boundaries.
 
 ## Roadmap
 
-Case 01.1 adds CI/CD and Fly.io deployment. Case 02 begins YouTube Discovery. Production/deployment configuration is deliberately excluded from this branch.
+Case 01.2 adds CI/CD and Fly.io deployment. Case 02 begins YouTube Discovery. Production/deployment configuration is deliberately excluded from this branch.
