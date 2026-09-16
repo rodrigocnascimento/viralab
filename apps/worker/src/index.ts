@@ -1,12 +1,12 @@
 import { parseWorkerEnv } from '@viralab/shared';
 import { Worker } from 'bullmq';
-import IORedis from 'ioredis';
+import { Redis } from 'ioredis';
 
 const env = parseWorkerEnv(process.env);
-const connection = new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null });
+const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
 
 connection.on('ready', () => console.log('[worker] Redis connected'));
-connection.on('error', (error) => console.error('[worker] Redis error', error));
+connection.on('error', (error: Error) => console.error('[worker] Redis error', error));
 
 const worker = new Worker(
   'viralab',
