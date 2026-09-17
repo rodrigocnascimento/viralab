@@ -38,7 +38,7 @@ jobs:
 
       - name: Commit lockfile
         run: |
-          if git diff --quiet -- pnpm-lock.yaml; then
+          if [ -z "$(git status --porcelain -- pnpm-lock.yaml)" ]; then
             echo "pnpm-lock.yaml is already up to date"
             exit 0
           fi
