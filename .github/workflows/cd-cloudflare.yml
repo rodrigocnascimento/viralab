@@ -71,6 +71,12 @@ jobs:
         if: steps.release.outputs.deploy == 'true'
         run: pnpm install --frozen-lockfile
 
+      - name: Apply database migrations
+        if: steps.release.outputs.deploy == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm db:migrate
+
       - name: Build API
         if: steps.release.outputs.deploy == 'true'
         run: pnpm --filter @viralab/api... build
