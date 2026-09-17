@@ -38,8 +38,20 @@ export const discoveryQueueMessageSchema = z.object({
   requestedAt: z.iso.datetime(),
 });
 
+export const channelIngestionQueueMessageSchema = z.object({
+  version: z.literal(1),
+  type: z.literal('youtube.channel.ingestion.requested'),
+  jobId: z.uuid(),
+  correlationId: z.uuid(),
+  channelId: z.uuid(),
+  youtubeChannelId: z.string().min(1).max(128),
+  requestedAt: z.iso.datetime(),
+  source: z.enum(['discovery', 'manual', 'scheduler']).default('discovery'),
+});
+
 export type DiscoveryRequest = z.infer<typeof discoveryRequestSchema>;
 export type DiscoveryQueueMessage = z.infer<typeof discoveryQueueMessageSchema>;
+export type ChannelIngestionQueueMessage = z.infer<typeof channelIngestionQueueMessageSchema>;
 
 export const searchPerformedEventSchema = z.object({
   eventName: z.literal('search_performed'),

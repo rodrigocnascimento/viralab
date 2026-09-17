@@ -1,4 +1,15 @@
-import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -14,6 +25,15 @@ export const channels = pgTable(
     description: text('description'),
     thumbnailUrl: text('thumbnail_url'),
     publishedAt: timestamp('published_at', { withTimezone: true }),
+    customUrl: text('custom_url'),
+    country: text('country'),
+    defaultLanguage: text('default_language'),
+    uploadsPlaylistId: text('uploads_playlist_id'),
+    subscriberCount: bigint('subscriber_count', { mode: 'bigint' }),
+    viewCount: bigint('view_count', { mode: 'bigint' }),
+    videoCount: bigint('video_count', { mode: 'bigint' }),
+    hiddenSubscriberCount: boolean('hidden_subscriber_count'),
+    lastIngestedAt: timestamp('last_ingested_at', { withTimezone: true }),
     firstDiscoveredAt: timestamp('first_discovered_at', { withTimezone: true }).notNull().defaultNow(),
     lastDiscoveredAt: timestamp('last_discovered_at', { withTimezone: true }).notNull().defaultNow(),
     ...timestamps,

@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { analyticsEvents, channels, videos } from './schema.js';
@@ -129,5 +129,48 @@ export class DiscoveryRepository {
   async findChannelByYoutubeId(youtubeId: string) {
     const [row] = await this.db.select().from(channels).where(eq(channels.youtubeId, youtubeId)).limit(1);
     return row ?? null;
+  }
+
+  async enrichChannel(input: {
+    channelId: string;
+    youtubeId: string;
+    title: string;
+    description?: string | null;
+    thumbnailUrl?: string | null;
+    publishedAt?: Date | null;
+    customUrl?: string | null;
+    country?: string | null;
+    defaultLanguage?: string | null;
+    uploadsPlaylistId?: string | null;
+    subscriberCount?: bigint | null;
+    viewCount?: bigint | null;
+    videoCount?: bigint | null;
+    hiddenSubscriberCount?: boolean | null;
+    ingestedAt: Date;
+  }): Promise<void> {
+    const [row] = await this.db
+      .update(channels)
+      .set({
+        title: input.title,
+        description: input.description ?? null,
+        thumbnailUrl: input.thumbnailUrl ?? null,
+        publishedAt: input.publishedAt ?? null,
+        customUrl: input.customUrl ?? null,
+        country: input.country ?? null,
+        defaultLanguage: input.defaultLanguage ?? null,
+        uploadsPlaylistId: input.uploadsPlaylistId ?? null,
+        subscriberCount: input.subscriberCount ?? null,
+        viewCount: input.viewCount ?? null,
+        videoCount: input.videoCount ?? null,
+        hiddenSubscriberCount: input.hiddenSubscriberCount ?? null,
+        lastIngestedAt: input.ingestedAt,
+        updatedAt: input.ingestedAt,
+      })
+      .where(and(eq(channels.id, input.channelId), eq(channels.youtubeId, input.youtubeId)))
+      .returning({ id: channels.id });
+
+    if (!row) {
+      throw new Error('Channel enrichment identity mismatch or channel not found');
+    }
   }
 }
