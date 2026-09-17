@@ -2,6 +2,8 @@ name = "viralab-discovery"
 main = "src/index.ts"
 compatibility_date = "2026-09-16"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+preview_urls = false
 
 [[queues.consumers]]
 queue = "viralab-discovery"
