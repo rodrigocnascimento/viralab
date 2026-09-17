@@ -47,7 +47,6 @@ export default {
           event: 'discovery.started',
           jobId: message.jobId,
           correlationId: message.correlationId,
-          query: message.query,
         }));
 
         try {

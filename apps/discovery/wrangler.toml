@@ -22,3 +22,14 @@ YOUTUBE_MAX_RESULTS = "25"
 
 [secrets]
 required = ["YOUTUBE_API_KEY"]
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+persist = true
