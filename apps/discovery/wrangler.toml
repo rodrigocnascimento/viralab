@@ -25,11 +25,11 @@ required = ["YOUTUBE_API_KEY"]
 
 [observability.logs]
 enabled = true
-head_sampling_rate = 1
+head_sampling_rate = 0.50
 invocation_logs = true
 persist = true
 
 [observability.traces]
 enabled = true
-head_sampling_rate = 1
+head_sampling_rate = 0.25
 persist = true
