@@ -18,11 +18,11 @@ CORS_ALLOWED_ORIGINS = "http://localhost:5173,https://viralab.space"
 
 [observability.logs]
 enabled = true
-head_sampling_rate = 1
+head_sampling_rate = 0.25
 invocation_logs = true
 persist = true
 
 [observability.traces]
 enabled = true
-head_sampling_rate = 1
+head_sampling_rate = 0.10
 persist = true
