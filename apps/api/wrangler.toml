@@ -7,11 +7,11 @@ compatibility_flags = ["nodejs_compat"]
 binding = "DISCOVERY_QUEUE"
 queue = "viralab-discovery"
 
-[vars]
-# Comma-separated exact origins. Override per environment.
-CORS_ALLOWED_ORIGINS = "http://localhost:5173"
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "3b8b5380c72b4d49af5828d60a08e969"
+localConnectionString = "postgresql://viralab:viralab@localhost:5432/viralab"
 
-# Configure before deploy:
-# [[hyperdrive]]
-# binding = "HYPERDRIVE"
-# id = "<hyperdrive-config-id>"
+[vars]
+# Comma-separated exact origins allowed by the API.
+CORS_ALLOWED_ORIGINS = "http://localhost:5173,https://viralab.space"
