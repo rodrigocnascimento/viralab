@@ -36,6 +36,23 @@ describe('YouTubeDataApiGateway', () => {
     expect(url.searchParams.get('q')).toBe('homelab');
   });
 
+  it('invokes the fetcher without binding the gateway as this', async () => {
+    const fetchMock = vi.fn(function (this: unknown, input: URL | RequestInfo) {
+      void input;
+      expect(this).toBeUndefined();
+      return Promise.resolve(new Response(JSON.stringify({ items: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }));
+    });
+
+    const gateway = new YouTubeDataApiGateway('secret', fetchMock as unknown as typeof fetch);
+    await expect(gateway.searchVideos({ query: 'homelab', maxResults: 25 })).resolves.toMatchObject({
+      items: [],
+      quotaCost: YOUTUBE_QUOTA_COST.searchList,
+    });
+  });
+
   it('classifies quota exhaustion as non-retryable', async () => {
     const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
       void input;
