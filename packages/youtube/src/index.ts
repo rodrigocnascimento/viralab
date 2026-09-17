@@ -103,7 +103,8 @@ export class YouTubeDataApiGateway implements YouTubeDiscoveryGateway {
 
     let response: Response;
     try {
-      response = await this.fetcher(url);
+      const fetcher = this.fetcher;
+      response = await fetcher(url);
     } catch (error) {
       throw new YouTubeGatewayError(
         'provider_unavailable',
