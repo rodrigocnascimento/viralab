@@ -8,6 +8,13 @@
       "when": 1789580000000,
       "tag": "0000_case02_discovery",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789681200000,
+      "tag": "0001_case03_channel_ingestion",
+      "breakpoints": true
     }
   ]
 }
