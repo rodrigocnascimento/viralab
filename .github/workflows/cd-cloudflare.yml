@@ -1,0 +1,94 @@
+name: CD - Cloudflare
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Workers
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Resolve production commit
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_main="$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/main | cut -f1)"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            release_sha="${current_main}"
+          else
+            release_sha="${{ github.event.workflow_run.head_sha }}"
+            if [[ "${release_sha}" != "${current_main}" ]]; then
+              echo "CI completed for stale commit ${release_sha}; current main is ${current_main}. Skipping deploy."
+              echo "deploy=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo "sha=${release_sha}" >> "$GITHUB_OUTPUT"
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release commit
+        if: steps.release.outputs.deploy == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.sha }}
+
+      - name: Setup pnpm
+        if: steps.release.outputs.deploy == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+          run_install: false
+
+      - name: Setup Node.js
+        if: steps.release.outputs.deploy == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.release.outputs.deploy == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build API
+        if: steps.release.outputs.deploy == 'true'
+        run: pnpm --filter @viralab/api... build
+
+      - name: Deploy API
+        if: steps.release.outputs.deploy == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @viralab/api exec wrangler deploy
+
+      - name: Build discovery consumer
+        if: steps.release.outputs.deploy == 'true'
+        run: pnpm --filter @viralab/discovery... build
+
+      - name: Deploy discovery consumer
+        if: steps.release.outputs.deploy == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @viralab/discovery exec wrangler deploy
