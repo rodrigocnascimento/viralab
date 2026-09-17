@@ -15,3 +15,14 @@ localConnectionString = "postgresql://viralab:viralab@localhost:5432/viralab"
 [vars]
 # Comma-separated exact origins allowed by the API.
 CORS_ALLOWED_ORIGINS = "http://localhost:5173,https://viralab.space"
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+persist = true
