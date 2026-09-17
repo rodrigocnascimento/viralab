@@ -17,5 +17,5 @@ id = "3b8b5380c72b4d49af5828d60a08e969"
 [vars]
 YOUTUBE_MAX_RESULTS = "25"
 
-# Secrets:
-# wrangler secret put YOUTUBE_API_KEY
+[secrets]
+required = ["YOUTUBE_API_KEY"]
