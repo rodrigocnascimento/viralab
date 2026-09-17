@@ -10,7 +10,8 @@ queue = "viralab-discovery"
 [[hyperdrive]]
 binding = "HYPERDRIVE"
 id = "3b8b5380c72b4d49af5828d60a08e969"
+localConnectionString = "postgresql://viralab:viralab@localhost:5432/viralab"
 
 [vars]
-# Comma-separated exact origins. Override per environment.
-CORS_ALLOWED_ORIGINS = "https://viralab.space"
+# Comma-separated exact origins allowed by the API.
+CORS_ALLOWED_ORIGINS = "http://localhost:5173,https://viralab.space"
