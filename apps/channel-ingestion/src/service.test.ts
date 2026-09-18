@@ -64,6 +64,35 @@ describe('processChannelIngestion', () => {
     }));
   });
 
+
+  it('records provider quota consumption even when persistence fails afterwards', async () => {
+    const provider = {
+      provider: 'youtube' as const,
+      getChannel: vi.fn(async () => ({ channel: profile, quotaCost: 1 })),
+    };
+    const onProviderRequestCompleted = vi.fn();
+    const persistence = {
+      enrichChannel: vi.fn(async () => {
+        throw new Error('database unavailable');
+      }),
+    };
+
+    await expect(processChannelIngestion(message, {
+      provider,
+      persistence,
+      onProviderRequestCompleted,
+    })).rejects.toThrow('database unavailable');
+
+    expect(onProviderRequestCompleted).toHaveBeenCalledWith({
+      provider: 'youtube',
+      operation: 'channels.list',
+      quotaCost: 1,
+    });
+    expect(onProviderRequestCompleted.mock.invocationCallOrder[0]).toBeLessThan(
+      persistence.enrichChannel.mock.invocationCallOrder[0]!,
+    );
+  });
+
   it('rejects a provider mismatch before doing provider work', async () => {
     const provider = {
       provider: 'youtube' as const,
