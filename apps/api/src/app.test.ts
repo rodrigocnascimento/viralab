@@ -138,7 +138,7 @@ describe('discovery API', () => {
     const response = await handleRequest(new Request('https://api.example.com/api/v1/opportunities'), {
       pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
       resolveAuth: async () => null,
-      checkAnonymousExplorerRateLimit: async () => ({ allowed: false, retryAfterSeconds: 60 }),
+      checkAnonymousExplorerAccess: async () => ({ kind: 'rate_limited' as const, retryAfterSeconds: 60 }),
       listOpportunities,
     });
     expect(response.status).toBe(429);
@@ -147,15 +147,15 @@ describe('discovery API', () => {
   });
 
   it('bypasses anonymous Explorer rate limit for authenticated users', async () => {
-    const checkAnonymousExplorerRateLimit = vi.fn(async () => ({ allowed: false, retryAfterSeconds: 60 }));
+    const checkAnonymousExplorerAccess = vi.fn(async () => ({ kind: 'rate_limited' as const, retryAfterSeconds: 60 }));
     const response = await handleRequest(new Request('https://api.example.com/api/v1/opportunities', { headers: { authorization: 'Bearer valid' } }), {
       pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
       resolveAuth: async () => ({ userId: 'user-1', email: 'user@example.com', provider: 'google' }),
-      checkAnonymousExplorerRateLimit,
+      checkAnonymousExplorerAccess,
       listOpportunities: async () => [],
     });
     expect(response.status).toBe(200);
-    expect(checkAnonymousExplorerRateLimit).not.toHaveBeenCalled();
+    expect(checkAnonymousExplorerAccess).not.toHaveBeenCalled();
   });
 
   it('returns the authenticated identity and application profile', async () => {
