@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { analyticsEvents, channels, videos } from './schema.js';
@@ -134,6 +134,36 @@ export class DiscoveryRepository {
     return row ?? null;
   }
 
+  async claimChannelForIngestion(input: {
+    channelId: string;
+    provider: 'youtube';
+    providerId: string;
+    requestedAt: Date;
+    freshAfter: Date;
+    claimExpiredBefore: Date;
+  }): Promise<boolean> {
+    void input.provider;
+
+    const [row] = await this.db
+      .update(channels)
+      .set({
+        lastIngestionRequestedAt: input.requestedAt,
+        updatedAt: input.requestedAt,
+      })
+      .where(and(
+        eq(channels.id, input.channelId),
+        eq(channels.youtubeId, input.providerId),
+        or(isNull(channels.lastIngestedAt), lt(channels.lastIngestedAt, input.freshAfter)),
+        or(
+          isNull(channels.lastIngestionRequestedAt),
+          lt(channels.lastIngestionRequestedAt, input.claimExpiredBefore),
+        ),
+      ))
+      .returning({ id: channels.id });
+
+    return Boolean(row);
+  }
+
   async enrichChannel(input: {
     channelId: string;
     provider: 'youtube';
@@ -168,6 +198,7 @@ export class DiscoveryRepository {
         videoCount: input.videoCount ?? null,
         hiddenSubscriberCount: input.hiddenSubscriberCount ?? null,
         lastIngestedAt: input.ingestedAt,
+        lastIngestionRequestedAt: null,
         updatedAt: input.ingestedAt,
       })
       .where(and(eq(channels.id, input.channelId), eq(channels.youtubeId, input.providerId)))
