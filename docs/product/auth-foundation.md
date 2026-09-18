@@ -1,19 +1,33 @@
 # Authentication foundation
 
-## Flow
+## Authentication flow
 
-1. Web app signs in through Supabase Auth.
+1. Web signs in through Supabase Auth.
 2. Supabase manages the browser session.
-3. Web sends the access token to the Viralab API as a Bearer token.
-4. The API verifies the token and converts claims into a provider-neutral AuthContext.
+3. Web sends the access token to Viralab API as a Bearer token.
+4. API verifies it and creates a provider-neutral AuthContext.
 5. Protected use cases consume AuthContext.userId.
-6. A profile row is created/upserted lazily when an authenticated user reaches the API.
+6. A Viralab profile is created/upserted lazily.
 
-## Anonymous Explorer
+## Anonymous Explorer policy
 
-The Explorer remains a dataset-backed preview. Anonymous requests are rate-limited at the API edge. Authenticated requests bypass the anonymous acquisition limiter after successful token verification.
+Explorer is a dataset-backed product preview, not a YouTube provider query.
 
-This is deliberately different from provider quota: Explorer never calls YouTube directly.
+Three controls are intentionally separate:
+
+| Control | Initial policy | Purpose |
+| --- | --- | --- |
+| Security burst rate limit | 30/min/IP | flood/abuse protection |
+| Browser daily quota | 10/day | acquisition/product allowance |
+| IP daily ceiling | 50/day | casual incognito/private-mode circumvention |
+
+The browser identity is a random UUID persisted in localStorage and sent as `X-Viralab-Anonymous-ID`. It is not a login credential. Raw IP is not persisted.
+
+Daily quota state uses a SQLite-backed Durable Object because quota increments need strong coordination. Workers KV was considered and rejected for authoritative enforcement because its reads are eventually consistent and concurrent read-modify-write increments are not atomic.
+
+When the daily browser quota is exhausted, Explorer redirects to the login screen. The screen offers Google sign-in and a “View paid plans” CTA; plans themselves are deferred.
+
+Authenticated Explorer traffic bypasses anonymous product quota. Account and paid-plan entitlements will be a later policy layer rather than an extension of the IP rate limiter.
 
 ## Manual provider configuration
 
