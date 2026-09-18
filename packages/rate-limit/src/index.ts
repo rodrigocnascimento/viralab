@@ -13,3 +13,5 @@ export const consumeRateLimit = async (binding: RateLimitBinding, key: string, r
   const result = await binding.limit({ key });
   return { allowed: result.success, retryAfterSeconds };
 };
+
+export * from './quota.js';
