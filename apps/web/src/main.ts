@@ -4,6 +4,7 @@ import Explorer from './Explorer.vue';
 import Login from './Login.vue';
 import AuthCallback from './AuthCallback.vue';
 import { i18n, initialLocale } from './i18n';
+import { initSentry, Sentry } from './sentry';
 import './style.css';
 
 document.documentElement.lang = initialLocale;
@@ -45,8 +46,18 @@ window.addEventListener('unhandledrejection', (event) => {
 
 try {
   const app = createApp(Root);
+  const sentryEnabled = initSentry(app);
+  const sentryVueErrorHandler = app.config.errorHandler;
 
   app.config.errorHandler = (error, instance, info) => {
+    sentryVueErrorHandler?.(error, instance, info);
+    if (sentryEnabled) {
+      Sentry.captureException(error, {
+        contexts: {
+          vue: { info },
+        },
+      });
+    }
     console.error('[viralab:web:vue-error]', { error, instance, info });
     renderBootFailure();
   };
@@ -54,6 +65,7 @@ try {
   app.use(i18n);
   app.mount('#app');
 } catch (error) {
+  Sentry.captureException(error);
   console.error('[viralab:web:bootstrap-error]', error);
   renderBootFailure();
 }
