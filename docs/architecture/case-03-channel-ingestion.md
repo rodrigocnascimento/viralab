@@ -45,17 +45,18 @@ Supabase PostgreSQL
 ```json
 {
   "version": 1,
-  "type": "youtube.channel.ingestion.requested",
+  "type": "content.channel.ingestion.requested",
+  "provider": "youtube",
   "jobId": "<uuid>",
   "correlationId": "<uuid>",
   "channelId": "<internal-channel-uuid>",
-  "youtubeChannelId": "UC...",
+  "providerChannelId": "UC...",
   "requestedAt": "2026-09-17T00:00:00.000Z",
   "source": "discovery"
 }
 ```
 
-`channelId` is Viralab identity. `youtubeChannelId` avoids a database read only to construct the provider request. Consumers reject unknown versions/types.
+`channelId` is Viralab identity. `provider` selects the platform adapter and `providerChannelId` is the external channel identity without leaking YouTube naming into orchestration. Consumers reject unknown versions/types/providers. The MVP supports only `youtube`; additional providers are additive.
 
 ## Persistence model
 
@@ -129,8 +130,11 @@ apps/channel-ingestion
 packages/shared
   versioned ingestion contract
 
+packages/providers
+  provider-neutral discovery/channel contracts
+
 packages/youtube
-  channels.list adapter
+  YouTube adapter implementing provider contracts
 
 packages/database
   schema migration + canonical update
