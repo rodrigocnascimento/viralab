@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { supabase } from './supabase';
 
 type Opportunity = {
   id: string; score: number; confidence: number; multiplier: number; baselineViewCount: string; observedViewCount: string; detectedAt: string;
@@ -29,9 +30,10 @@ const format = (value: string | null) => value === null ? '—' : new Intl.Numbe
 const load = async () => {
   loading.value = true; error.value = '';
   try {
-    const response = await fetch(`${apiBase}/api/v1/opportunities?minScore=${minScore.value}&limit=50`, {
-      headers: { 'x-viralab-anonymous-id': anonymousId },
-    });
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'x-viralab-anonymous-id': anonymousId };
+    if (session?.access_token) headers.authorization = `Bearer ${session.access_token}`;
+    const response = await fetch(`${apiBase}/api/v1/opportunities?minScore=${minScore.value}&limit=50`, { headers });
     if (response.status === 429) {
       const body = await response.json().catch(() => null) as { upgrade?: string } | null;
       if (body?.upgrade === 'sign_in') {
