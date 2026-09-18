@@ -56,8 +56,15 @@ jobs:
       - name: Build web
         run: pnpm --filter @viralab/web build
 
+      - name: Smoke test built web runtime
+        run: bash apps/web/scripts/smoke-runtime.sh
+
       - name: Deploy landing to Cloudflare Workers
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @viralab/web exec wrangler deploy
+
+
+      - name: Smoke test production web runtime
+        run: bash apps/web/scripts/smoke-runtime.sh https://viralab.space
