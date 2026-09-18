@@ -47,7 +47,8 @@ describe('discovery API', () => {
     }));
     expect(enqueue).toHaveBeenCalledWith({
       version: 1,
-      type: 'youtube.discovery.requested',
+      type: 'content.discovery.requested',
+      provider: 'youtube',
       jobId: fixedIds[0],
       correlationId: fixedIds[1],
       query: 'homelab servers',
