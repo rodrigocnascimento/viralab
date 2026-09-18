@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@viralab/database": "workspace:*",
-    "@viralab/shared": "workspace:*"
+    "@viralab/shared": "workspace:*",
+    "@viralab/rate-limit": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^3.2.4",
