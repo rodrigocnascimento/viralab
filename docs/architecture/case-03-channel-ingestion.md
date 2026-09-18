@@ -181,10 +181,25 @@ Runtime queue creation and production deployment remain Case 03.5 concerns so me
 The Wrangler producer binding itself is activated in Case 03.5 after the Cloudflare queue exists, so merging 03.4 cannot break the current production discovery deploy.
 
 ### Case 03.5 — Runtime validation
-- create queue + DLQ;
+- provision `viralab-channel-ingestion` and `viralab-channel-ingestion-dlq`;
+- bind discovery as producer through `CHANNEL_INGESTION_QUEUE`;
+- deploy the channel-ingestion Worker before enabling the discovery producer;
+- sync `YOUTUBE_API_KEY` from the GitHub Actions repository secret into the new Worker;
 - deploy through GitHub Actions;
-- discovery smoke test;
-- verify enriched columns and logs.
+- run a production discovery smoke test;
+- verify migration 0002, handoff counters, channel enrichment, correlation IDs and queue/DLQ health.
+
+Deployment ordering is intentional:
+
+```text
+database migration
+  -> API
+  -> channel-ingestion consumer
+  -> channel-ingestion YOUTUBE_API_KEY secret
+  -> discovery producer
+```
+
+This ensures the consumer exists and has credentials before discovery can publish channel-ingestion work.
 
 ## Acceptance criteria
 
