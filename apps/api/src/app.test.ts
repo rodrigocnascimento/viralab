@@ -133,6 +133,42 @@ describe('discovery API', () => {
     expect(enqueue).not.toHaveBeenCalled();
   });
 
+  it('rate limits anonymous Explorer before reading the dataset', async () => {
+    const listOpportunities = vi.fn(async () => []);
+    const response = await handleRequest(new Request('https://api.example.com/api/v1/opportunities'), {
+      pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
+      resolveAuth: async () => null,
+      checkAnonymousExplorerRateLimit: async () => ({ allowed: false, retryAfterSeconds: 60 }),
+      listOpportunities,
+    });
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('60');
+    expect(listOpportunities).not.toHaveBeenCalled();
+  });
+
+  it('bypasses anonymous Explorer rate limit for authenticated users', async () => {
+    const checkAnonymousExplorerRateLimit = vi.fn(async () => ({ allowed: false, retryAfterSeconds: 60 }));
+    const response = await handleRequest(new Request('https://api.example.com/api/v1/opportunities', { headers: { authorization: 'Bearer valid' } }), {
+      pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
+      resolveAuth: async () => ({ userId: 'user-1', email: 'user@example.com', provider: 'google' }),
+      checkAnonymousExplorerRateLimit,
+      listOpportunities: async () => [],
+    });
+    expect(response.status).toBe(200);
+    expect(checkAnonymousExplorerRateLimit).not.toHaveBeenCalled();
+  });
+
+  it('returns the authenticated identity and application profile', async () => {
+    const ensureProfile = vi.fn(async () => ({ id: 'user-1', email: 'user@example.com', displayName: null, avatarUrl: null }));
+    const response = await handleRequest(new Request('https://api.example.com/api/v1/me', { headers: { authorization: 'Bearer valid' } }), {
+      pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
+      resolveAuth: async () => ({ userId: 'user-1', email: 'user@example.com', provider: 'google' }),
+      ensureProfile,
+    });
+    expect(response.status).toBe(200);
+    expect(ensureProfile).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1', email: 'user@example.com' }));
+  });
+
   it('rejects invalid opportunity filters', async () => {
     const response = await handleRequest(new Request('https://api.example.com/api/v1/opportunities?minScore=999'), {
       pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
