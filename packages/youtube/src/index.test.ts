@@ -27,8 +27,8 @@ describe('YouTubeDataApiGateway', () => {
     expect(result.quotaCost).toBe(YOUTUBE_QUOTA_COST.searchList);
     expect(result.nextPageToken).toBe('next');
     expect(result.items).toHaveLength(1);
-    expect(result.items[0]?.channel).toEqual({ youtubeId: 'channel-1', title: 'Homelab Channel' });
-    expect(result.items[0]?.video.youtubeId).toBe('video-1');
+    expect(result.items[0]?.channel).toEqual({ providerId: 'channel-1', title: 'Homelab Channel' });
+    expect(result.items[0]?.video.providerId).toBe('video-1');
 
     const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
     expect(url.searchParams.get('type')).toBe('video');
@@ -67,11 +67,11 @@ describe('YouTubeDataApiGateway', () => {
     });
 
     const gateway = new YouTubeDataApiGateway('secret', fetchMock as unknown as typeof fetch);
-    const result = await gateway.getChannel({ youtubeChannelId: 'UC-channel-1' });
+    const result = await gateway.getChannel({ providerChannelId: 'UC-channel-1' });
 
     expect(result.quotaCost).toBe(YOUTUBE_QUOTA_COST.channelsList);
     expect(result.channel).toMatchObject({
-      youtubeId: 'UC-channel-1',
+      providerId: 'UC-channel-1',
       title: 'Homelab Channel',
       customUrl: '@homelab',
       country: 'BR',
@@ -99,7 +99,7 @@ describe('YouTubeDataApiGateway', () => {
     }), { status: 200, headers: { 'content-type': 'application/json' } }));
 
     const gateway = new YouTubeDataApiGateway('secret', fetchMock as unknown as typeof fetch);
-    const result = await gateway.getChannel({ youtubeChannelId: 'UC-hidden' });
+    const result = await gateway.getChannel({ providerChannelId: 'UC-hidden' });
 
     expect(result.channel.subscriberCount).toBeNull();
     expect(result.channel.viewCount).toBeNull();
@@ -117,7 +117,7 @@ describe('YouTubeDataApiGateway', () => {
     }), { status: 200, headers: { 'content-type': 'application/json' } }));
 
     const gateway = new YouTubeDataApiGateway('secret', fetchMock as unknown as typeof fetch);
-    await expect(gateway.getChannel({ youtubeChannelId: 'UC-channel-1' })).rejects.toMatchObject({
+    await expect(gateway.getChannel({ providerChannelId: 'UC-channel-1' })).rejects.toMatchObject({
       kind: 'unexpected_provider_response',
       retryable: false,
     });
@@ -132,7 +132,7 @@ describe('YouTubeDataApiGateway', () => {
     }), { status: 200, headers: { 'content-type': 'application/json' } }));
 
     const gateway = new YouTubeDataApiGateway('secret', fetchMock as unknown as typeof fetch);
-    await expect(gateway.getChannel({ youtubeChannelId: 'UC-channel-1' })).rejects.toMatchObject({
+    await expect(gateway.getChannel({ providerChannelId: 'UC-channel-1' })).rejects.toMatchObject({
       kind: 'unexpected_provider_response',
       retryable: false,
     });
@@ -145,7 +145,7 @@ describe('YouTubeDataApiGateway', () => {
     }));
 
     const gateway = new YouTubeDataApiGateway('secret', fetchMock as unknown as typeof fetch);
-    await expect(gateway.getChannel({ youtubeChannelId: 'UC-missing' })).rejects.toMatchObject({
+    await expect(gateway.getChannel({ providerChannelId: 'UC-missing' })).rejects.toMatchObject({
       kind: 'invalid_request',
       retryable: false,
     });
