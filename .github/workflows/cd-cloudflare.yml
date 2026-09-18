@@ -88,6 +88,40 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @viralab/api exec wrangler deploy
 
+      - name: Validate channel ingestion secret
+        if: steps.release.outputs.deploy == 'true'
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${YOUTUBE_API_KEY}" ]]; then
+            echo "::error::Repository secret YOUTUBE_API_KEY is required before channel-ingestion deployment."
+            exit 1
+          fi
+
+      - name: Build channel ingestion consumer
+        if: steps.release.outputs.deploy == 'true'
+        run: pnpm --filter @viralab/channel-ingestion... build
+
+      - name: Deploy channel ingestion consumer
+        if: steps.release.outputs.deploy == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @viralab/channel-ingestion exec wrangler deploy
+
+      - name: Sync channel ingestion YouTube secret
+        if: steps.release.outputs.deploy == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "${YOUTUBE_API_KEY}" | pnpm --filter @viralab/channel-ingestion exec wrangler secret put YOUTUBE_API_KEY
+
       - name: Build discovery consumer
         if: steps.release.outputs.deploy == 'true'
         run: pnpm --filter @viralab/discovery... build
