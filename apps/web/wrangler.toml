@@ -11,6 +11,3 @@ custom_domain = true
 directory = "./dist"
 not_found_handling = "single-page-application"
 html_handling = "auto-trailing-slash"
-
-[assets.headers]
-"/*" = { "X-Content-Type-Options" = "nosniff", "Referrer-Policy" = "strict-origin-when-cross-origin", "Strict-Transport-Security" = "max-age=31536000; includeSubDomains", "Content-Security-Policy" = "default-src 'self'; img-src 'self' data: https://i.ytimg.com; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://api.viralab.space; base-uri 'self'; form-action 'self' mailto:; frame-ancestors 'none'" }
