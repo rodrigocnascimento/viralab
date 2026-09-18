@@ -14,7 +14,7 @@ const signIn = () => {
 <template>
   <div class="login-shell">
     <header class="explorer-nav container">
-      <a class="brand" href="/"><span class="brand-mark">V</span><span>vira<strong>lab</strong></span></a>
+      <a class="brand brand-logo" href="/" aria-label="Viralab home"><img src="/viralab-logo.svg" alt="Viralab"></a>
       <span class="dataset-badge">{{ pt ? 'CONTINUE EXPLORANDO' : 'KEEP EXPLORING' }}</span>
     </header>
     <main class="container login-main">
