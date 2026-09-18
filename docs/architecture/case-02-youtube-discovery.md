@@ -31,7 +31,7 @@ Cloudflare Queue
 Discovery consumer
         |
         +--> validate versioned message
-        +--> YouTube search.list (quota budget: 100 units/call)
+        +--> YouTube search.list (quota cost: 1 unit/call; separate daily search bucket)
         +--> normalize provider response
         +--> upsert channels
         +--> upsert videos
@@ -203,7 +203,7 @@ YouTube quota is an application resource, not an invisible provider implementati
 
 For Case 02:
 
-- `search.list` has an explicit modeled cost of 100 quota units per call;
+- `search.list` has an explicit modeled cost of 1 quota unit per call and is governed by its own daily search-call bucket;
 - the gateway exposes operation cost metadata in code;
 - one accepted discovery should perform a bounded number of search calls;
 - no pagination loop is unbounded;
