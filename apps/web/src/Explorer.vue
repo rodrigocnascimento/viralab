@@ -9,8 +9,7 @@ type Opportunity = {
   channel: { title: string; subscriberCount: string | null };
 };
 
-const { locale } = useI18n();
-const pt = computed(() => locale.value === 'pt-BR');
+const { locale, t } = useI18n();
 const items = ref<Opportunity[]>([]);
 const loading = ref(true);
 const error = ref('');
@@ -20,6 +19,7 @@ const freeQuota = ref<
   | { kind: 'signup_bonus'; limit: number; remaining: number }
   | null
 >(null);
+
 const anonymousId = (() => {
   const key = 'viralab.anonymous-id';
   const existing = localStorage.getItem(key);
@@ -28,16 +28,32 @@ const anonymousId = (() => {
   localStorage.setItem(key, created);
   return created;
 })();
+
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'https://api.viralab.space';
 
-const format = (value: string | null) => value === null ? '—' : new Intl.NumberFormat(pt.value ? 'pt-BR' : 'en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(value));
+const quotaBadge = computed(() => {
+  if (!freeQuota.value) return t('explorer.badgeDataset');
+  const params = { remaining: freeQuota.value.remaining, limit: freeQuota.value.limit };
+  return freeQuota.value.kind === 'signup_bonus'
+    ? t('explorer.badgeSignup', params)
+    : t('explorer.badgeAnonymous', params);
+});
+
+const format = (value: string | null) => value === null
+  ? '—'
+  : new Intl.NumberFormat(locale.value, { notation: 'compact', maximumFractionDigits: 1 }).format(Number(value));
+
 const load = async () => {
-  loading.value = true; error.value = '';
+  loading.value = true;
+  error.value = '';
+
   try {
     const { data: { session } } = await supabase.auth.getSession();
     const headers: Record<string, string> = { 'x-viralab-anonymous-id': anonymousId };
     if (session?.access_token) headers.authorization = `Bearer ${session.access_token}`;
+
     const response = await fetch(`${apiBase}/api/v1/opportunities?minScore=${minScore.value}&limit=50`, { headers });
+
     if (response.status === 429) {
       const body = await response.json().catch(() => null) as { error?: string; upgrade?: string } | null;
       if (body?.upgrade === 'sign_in') {
@@ -45,11 +61,13 @@ const load = async () => {
         return;
       }
       if (body?.error === 'free_quota_exhausted') {
-        error.value = pt.value ? 'Seu bônus de cadastro terminou. As consultas anônimas voltam no próximo ciclo diário.' : 'Your signup bonus is finished. Anonymous searches return on the next daily cycle.';
+        error.value = t('explorer.bonusExhausted');
         return;
       }
     }
+
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
     const body = await response.json() as {
       items: Opportunity[];
       meta?: {
@@ -58,12 +76,16 @@ const load = async () => {
           | { kind: 'signup_bonus'; limit: number; remaining: number };
       };
     };
+
     items.value = body.items;
     freeQuota.value = body.meta?.freeQuota ?? null;
   } catch {
-    error.value = pt.value ? 'Não foi possível carregar os sinais agora.' : 'Unable to load signals right now.';
-  } finally { loading.value = false; }
+    error.value = t('explorer.loadError');
+  } finally {
+    loading.value = false;
+  }
 };
+
 onMounted(load);
 </script>
 
@@ -71,25 +93,51 @@ onMounted(load);
   <div class="explorer-shell">
     <header class="explorer-nav container">
       <a class="brand brand-logo" href="/" aria-label="Viralab home"><img src="/viralab-logo.svg" alt="Viralab"></a>
-      <span class="dataset-badge">{{ freeQuota ? (freeQuota.kind === 'signup_bonus' ? `${freeQuota.remaining}/${freeQuota.limit} ${pt ? 'BUSCAS BÔNUS DO CADASTRO' : 'SIGNUP BONUS SEARCHES LEFT'}` : `${freeQuota.remaining}/${freeQuota.limit} ${pt ? 'CONSULTAS GRÁTIS HOJE' : 'FREE QUERIES LEFT TODAY'}`) : (pt ? 'DATASET VIRALAB · YOUTUBE' : 'VIRALAB DATASET · YOUTUBE') }}</span>
+      <span class="dataset-badge">{{ quotaBadge }}</span>
     </header>
+
     <main class="container explorer-main">
       <div class="explorer-heading">
-        <div><p class="eyebrow">{{ pt ? 'OPPORTUNITY EXPLORER' : 'OPPORTUNITY EXPLORER' }}</p><h1>{{ pt ? 'Sinais antes do consenso.' : 'Signals before consensus.' }}</h1><p>{{ pt ? 'Outliers calculados sobre o dataset do Viralab. Abrir esta tela não consulta o YouTube.' : 'Outliers computed from Viralab’s dataset. Opening this screen does not query YouTube.' }}</p></div>
-        <label class="score-filter">{{ pt ? 'Score mínimo' : 'Minimum score' }} <input v-model.number="minScore" type="range" min="0" max="90" step="10" @change="load"><strong>{{ minScore }}</strong></label>
+        <div>
+          <p class="eyebrow">{{ t('explorer.eyebrow') }}</p>
+          <h1>{{ t('explorer.title') }}</h1>
+          <p>{{ t('explorer.intro') }}</p>
+        </div>
+
+        <label class="score-filter">
+          {{ t('explorer.minScore') }}
+          <input v-model.number="minScore" type="range" min="0" max="90" step="10" @change="load">
+          <strong>{{ minScore }}</strong>
+        </label>
       </div>
 
-      <div v-if="loading" class="explorer-state">{{ pt ? 'Calculando sinais…' : 'Loading signals…' }}</div>
-      <div v-else-if="error" class="explorer-state">{{ error }} <button @click="load">{{ pt ? 'Tentar novamente' : 'Retry' }}</button></div>
-      <div v-else-if="items.length === 0" class="explorer-state">{{ pt ? 'Nenhum sinal atingiu este score ainda. O dataset continua sendo atualizado.' : 'No signals reach this score yet. The dataset is still being refreshed.' }}</div>
+      <div v-if="loading" class="explorer-state">{{ t('explorer.loading') }}</div>
+      <div v-else-if="error" class="explorer-state">
+        {{ error }} <button @click="load">{{ t('explorer.retry') }}</button>
+      </div>
+      <div v-else-if="items.length === 0" class="explorer-state">{{ t('explorer.empty') }}</div>
+
       <section v-else class="opportunity-list" aria-live="polite">
         <article v-for="item in items" :key="item.id" class="opportunity-row">
           <img v-if="item.video.thumbnailUrl" :src="item.video.thumbnailUrl" :alt="item.video.title">
-          <div class="opportunity-copy"><span class="signal-label">VIDEO OUTLIER</span><h2>{{ item.video.title }}</h2><p>{{ item.channel.title }} · {{ format(item.channel.subscriberCount) }} {{ pt ? 'inscritos' : 'subscribers' }}</p><a :href="`https://www.youtube.com/watch?v=${item.video.providerId}`" target="_blank" rel="noopener">{{ pt ? 'Abrir vídeo ↗' : 'Open video ↗' }}</a></div>
-          <div class="opportunity-metrics"><span><small>SCORE</small><b>{{ item.score }}</b></span><span><small>{{ pt ? 'MULTIPLICADOR' : 'MULTIPLIER' }}</small><b>{{ item.multiplier.toFixed(1) }}×</b></span><span><small>{{ pt ? 'VIEWS / BASE' : 'VIEWS / BASELINE' }}</small><b>{{ format(item.observedViewCount) }} / {{ format(item.baselineViewCount) }}</b></span><span><small>{{ pt ? 'CONFIANÇA' : 'CONFIDENCE' }}</small><b>{{ item.confidence }}%</b></span></div>
+
+          <div class="opportunity-copy">
+            <span class="signal-label">VIDEO OUTLIER</span>
+            <h2>{{ item.video.title }}</h2>
+            <p>{{ item.channel.title }} · {{ format(item.channel.subscriberCount) }} {{ t('explorer.subscribers') }}</p>
+            <a :href="`https://www.youtube.com/watch?v=${item.video.providerId}`" target="_blank" rel="noopener">{{ t('explorer.openVideo') }}</a>
+          </div>
+
+          <div class="opportunity-metrics">
+            <span><small>SCORE</small><b>{{ item.score }}</b></span>
+            <span><small>{{ t('explorer.multiplier') }}</small><b>{{ item.multiplier.toFixed(1) }}×</b></span>
+            <span><small>{{ t('explorer.viewsBaseline') }}</small><b>{{ format(item.observedViewCount) }} / {{ format(item.baselineViewCount) }}</b></span>
+            <span><small>{{ t('explorer.confidence') }}</small><b>{{ item.confidence }}%</b></span>
+          </div>
         </article>
       </section>
-      <p class="model-note">{{ pt ? 'Modelo MVP: views do vídeo comparadas à média histórica de views por vídeo do canal. O histórico temporal da Case 07 substituirá essa baseline por janelas observadas.' : 'MVP model: video views compared with the channel’s lifetime average views per video. Case 07 temporal history will replace this baseline with observed windows.' }}</p>
+
+      <p class="model-note">{{ t('explorer.modelNote') }}</p>
     </main>
   </div>
 </template>
