@@ -15,7 +15,11 @@ const items = ref<Opportunity[]>([]);
 const loading = ref(true);
 const error = ref('');
 const minScore = ref(40);
-const freeQuota = ref<{ kind: 'anonymous' | 'signup_bonus'; limit: number; remaining: number; resetsAt: string } | null>(null);
+const freeQuota = ref<
+  | { kind: 'anonymous'; limit: number; remaining: number; resetsAt: string }
+  | { kind: 'signup_bonus'; limit: number; remaining: number }
+  | null
+>(null);
 const anonymousId = (() => {
   const key = 'viralab.anonymous-id';
   const existing = localStorage.getItem(key);
@@ -46,7 +50,14 @@ const load = async () => {
       }
     }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const body = await response.json() as { items: Opportunity[]; meta?: { freeQuota?: { kind: 'anonymous' | 'signup_bonus'; limit: number; remaining: number; resetsAt: string } } };
+    const body = await response.json() as {
+      items: Opportunity[];
+      meta?: {
+        freeQuota?:
+          | { kind: 'anonymous'; limit: number; remaining: number; resetsAt: string }
+          | { kind: 'signup_bonus'; limit: number; remaining: number };
+      };
+    };
     items.value = body.items;
     freeQuota.value = body.meta?.freeQuota ?? null;
   } catch {
