@@ -11,3 +11,14 @@ custom_domain = true
 directory = "./dist"
 not_found_handling = "single-page-application"
 html_handling = "auto-trailing-slash"
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1.0
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.10
+persist = true
