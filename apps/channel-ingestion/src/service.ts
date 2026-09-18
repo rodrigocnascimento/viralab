@@ -34,6 +34,11 @@ export const processChannelIngestion = async (
   deps: {
     provider: ChannelProvider;
     persistence: ChannelIngestionPersistence;
+    onProviderRequestCompleted?: (input: {
+      provider: ChannelIngestionQueueMessage['provider'];
+      operation: string;
+      quotaCost: number;
+    }) => void;
     now?: () => Date;
   },
 ): Promise<ChannelIngestionResult> => {
@@ -42,6 +47,13 @@ export const processChannelIngestion = async (
   }
 
   const result = await deps.provider.getChannel({ providerChannelId: message.providerChannelId });
+
+  deps.onProviderRequestCompleted?.({
+    provider: message.provider,
+    operation: 'channels.list',
+    quotaCost: result.quotaCost,
+  });
+
   const ingestedAt = deps.now?.() ?? new Date();
 
   if (result.channel.providerId !== message.providerChannelId) {
