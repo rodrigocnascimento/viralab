@@ -19,6 +19,8 @@ localConnectionString = "postgresql://viralab:viralab@localhost:5432/viralab"
 
 [vars]
 YOUTUBE_MAX_RESULTS = "25"
+CHANNEL_INGESTION_FRESHNESS_SECONDS = "21600"
+CHANNEL_INGESTION_CLAIM_TTL_SECONDS = "900"
 
 [secrets]
 required = ["YOUTUBE_API_KEY"]

@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { analyticsEvents, channels, videos } from './schema.js';
@@ -134,6 +134,91 @@ export class DiscoveryRepository {
     return row ?? null;
   }
 
+  async claimChannelForIngestion(input: {
+    channelId: string;
+    provider: 'youtube';
+    providerId: string;
+    ownerJobId: string;
+    ingestionJobId: string;
+    requestedAt: Date;
+    freshAfter: Date;
+    claimExpiredBefore: Date;
+  }): Promise<
+    | { status: 'claimed'; ingestionJobId: string }
+    | { status: 'owned'; ingestionJobId: string }
+    | { status: 'skipped' }
+  > {
+    void input.provider;
+
+    const [claimed] = await this.db
+      .update(channels)
+      .set({
+        lastIngestionRequestedAt: input.requestedAt,
+        lastIngestionRequestOwner: input.ownerJobId,
+        lastIngestionJobId: input.ingestionJobId,
+        updatedAt: input.requestedAt,
+      })
+      .where(and(
+        eq(channels.id, input.channelId),
+        eq(channels.youtubeId, input.providerId),
+        or(isNull(channels.lastIngestedAt), lt(channels.lastIngestedAt, input.freshAfter)),
+        or(
+          isNull(channels.lastIngestionRequestedAt),
+          lt(channels.lastIngestionRequestedAt, input.claimExpiredBefore),
+        ),
+      ))
+      .returning({ ingestionJobId: channels.lastIngestionJobId });
+
+    if (claimed?.ingestionJobId) {
+      return { status: 'claimed', ingestionJobId: claimed.ingestionJobId };
+    }
+
+    const [existing] = await this.db
+      .select({
+        lastIngestedAt: channels.lastIngestedAt,
+        lastIngestionRequestOwner: channels.lastIngestionRequestOwner,
+        lastIngestionJobId: channels.lastIngestionJobId,
+      })
+      .from(channels)
+      .where(and(eq(channels.id, input.channelId), eq(channels.youtubeId, input.providerId)))
+      .limit(1);
+
+    const stillStale = !existing?.lastIngestedAt || existing.lastIngestedAt < input.freshAfter;
+    if (
+      stillStale &&
+      existing?.lastIngestionRequestOwner === input.ownerJobId &&
+      existing.lastIngestionJobId
+    ) {
+      return { status: 'owned', ingestionJobId: existing.lastIngestionJobId };
+    }
+
+    return { status: 'skipped' };
+  }
+
+  async releaseChannelIngestionClaim(input: {
+    channelId: string;
+    provider: 'youtube';
+    providerId: string;
+    ownerJobId: string;
+    ingestionJobId: string;
+  }): Promise<void> {
+    void input.provider;
+
+    await this.db
+      .update(channels)
+      .set({
+        lastIngestionRequestedAt: null,
+        lastIngestionRequestOwner: null,
+        lastIngestionJobId: null,
+      })
+      .where(and(
+        eq(channels.id, input.channelId),
+        eq(channels.youtubeId, input.providerId),
+        eq(channels.lastIngestionRequestOwner, input.ownerJobId),
+        eq(channels.lastIngestionJobId, input.ingestionJobId),
+      ));
+  }
+
   async enrichChannel(input: {
     channelId: string;
     provider: 'youtube';
@@ -168,6 +253,9 @@ export class DiscoveryRepository {
         videoCount: input.videoCount ?? null,
         hiddenSubscriberCount: input.hiddenSubscriberCount ?? null,
         lastIngestedAt: input.ingestedAt,
+        lastIngestionRequestedAt: null,
+        lastIngestionRequestOwner: null,
+        lastIngestionJobId: null,
         updatedAt: input.ingestedAt,
       })
       .where(and(eq(channels.id, input.channelId), eq(channels.youtubeId, input.providerId)))
