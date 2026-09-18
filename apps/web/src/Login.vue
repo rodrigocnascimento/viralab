@@ -28,21 +28,21 @@ const signIn = async () => {
   <div class="login-shell">
     <header class="explorer-nav container">
       <a class="brand brand-logo" href="/" aria-label="Viralab home"><img src="/viralab-logo.svg" alt="Viralab"></a>
-      <span class="dataset-badge">{{ quotaReason ? (pt ? 'DESBLOQUEIE +5 BUSCAS HOJE' : 'UNLOCK +5 SEARCHES TODAY') : (pt ? 'ENTRAR NO VIRALAB' : 'SIGN IN TO VIRALAB') }}</span>
+      <span class="dataset-badge">{{ quotaReason ? (pt ? 'CADASTRE-SE E GANHE +5 BUSCAS' : 'SIGN UP AND GET +5 SEARCHES') : (pt ? 'ENTRAR NO VIRALAB' : 'SIGN IN TO VIRALAB') }}</span>
     </header>
     <main class="container login-main">
       <section class="login-card">
         <template v-if="quotaReason">
           <p class="eyebrow">{{ pt ? 'LIMITE GRATUITO DE HOJE ATINGIDO' : 'TODAY’S FREE LIMIT REACHED' }}</p>
-          <h1>{{ pt ? 'Entre e ganhe mais 5 buscas hoje.' : 'Sign in and get 5 more searches today.' }}</h1>
-          <p>{{ pt ? 'Você usou as 10 consultas anônimas de hoje. Entre com Google para liberar um bônus de 5 consultas gratuitas no Explorer.' : 'You used today’s 10 anonymous searches. Sign in with Google to unlock 5 additional free Explorer searches.' }}</p>
+          <h1>{{ pt ? 'Crie sua conta e ganhe mais 5 buscas.' : 'Create your account and get 5 more searches.' }}</h1>
+          <p>{{ pt ? 'Você usou as 10 consultas anônimas de hoje. No primeiro cadastro, sua conta recebe um bônus único de 5 consultas gratuitas no Explorer.' : 'You used today’s 10 anonymous searches. On first signup, your account receives a one-time bonus of 5 free Explorer searches.' }}</p>
         </template>
         <template v-else>
           <p class="eyebrow">{{ pt ? 'ENTRAR NO VIRALAB' : 'SIGN IN TO VIRALAB' }}</p>
           <h1>{{ pt ? 'Continue explorando sinais.' : 'Keep exploring signals.' }}</h1>
-          <p>{{ pt ? 'Entre com sua conta para usar o Viralab. O login também libera um bônus de 5 consultas gratuitas depois do limite anônimo do dia.' : 'Sign in to use Viralab with your account. Login also unlocks 5 additional free searches after the anonymous daily allowance.' }}</p>
+          <p>{{ pt ? 'Entre com sua conta para usar o Viralab. Se você ainda não tem conta, o primeiro cadastro inclui um bônus único de 5 consultas gratuitas.' : 'Sign in to use Viralab with your account. If you are new, your first signup includes a one-time bonus of 5 free searches.' }}</p>
         </template>
-        <button class="button login-primary" type="button" @click="signIn">{{ pt ? 'Entrar com Google' : 'Continue with Google' }} <span>→</span></button>
+        <button class="button login-primary" type="button" @click="signIn">{{ pt ? 'Entrar ou criar conta com Google' : 'Continue with Google' }} <span>→</span></button>
         <p v-if="authError" class="form-error" role="alert">{{ authError }}</p>
         <a class="plans-link" :href="plansHref">{{ pt ? 'Ver planos pagos' : 'View paid plans' }}</a>
         <small>{{ pt ? 'A página de planos será disponibilizada em uma próxima etapa.' : 'Plans will be available in a later release.' }}</small>
