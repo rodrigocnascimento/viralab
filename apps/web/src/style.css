@@ -9,3 +9,60 @@
 .login-shell{min-height:100vh;background:var(--cream)}.login-main{min-height:calc(100vh - 84px);display:grid;place-items:center;padding:70px 0}.login-card{width:min(560px,100%);padding:48px;background:var(--paper);border:1px solid #dfcdb7;box-shadow:18px 18px 0 #e7c895}.login-card h1{margin:0;font-family:Georgia,serif;font-size:clamp(42px,5vw,64px);font-weight:500;line-height:1;letter-spacing:-.045em}.login-card>p:not(.eyebrow){margin:24px 0 32px;color:#756151;line-height:1.7}.login-primary{width:100%;border:0;justify-content:space-between;cursor:pointer}.plans-link{display:block;margin-top:22px;padding:13px 0;text-align:center;border:1px solid #cdb79d;font-size:12px;font-weight:750}.login-card small{display:block;margin-top:14px;color:#998474;text-align:center;font-size:10px}
 
 .brand-logo{display:inline-flex;align-items:center}.brand-logo img{display:block;width:168px;height:auto}.footer-grid .brand-logo img{width:184px}@media(max-width:520px){.brand-logo img{width:142px}}
+
+
+/* Landing fold: mobile-first responsive behavior */
+.nav{height:72px}
+.nav-actions{display:flex;align-items:center;gap:10px}
+.login-button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:9px 12px;border:1px solid rgba(51,37,29,.25);border-radius:3px;font-size:12px;font-weight:750;background:transparent}
+.login-button:hover{border-color:var(--caramel);color:var(--caramel)}
+.hero{min-height:auto;display:grid;grid-template-columns:1fr;align-items:start;gap:28px;padding:42px 0 50px}
+.hero-copy{min-width:0}
+.hero h1{max-width:18ch;font-size:clamp(42px,11vw,58px);line-height:.96}
+.lead{margin:22px 0 0;font-size:16px;line-height:1.55}
+.actions{margin-top:24px}
+.hero-carousel{width:100vw;height:300px;margin-left:calc(50% - 50vw);overflow:hidden}
+.thumbnail-track{height:100%;align-items:flex-start;padding:12px 0 0 15px}
+.thumbnail-card{width:238px}
+.thumb-art{height:152px}
+
+@media(max-width:520px){
+  .nav-access{display:none}
+  .nav-actions{gap:6px}
+  .login-button{min-height:36px;padding:8px 10px;font-size:11px}
+  .hero{padding-top:34px;padding-bottom:42px}
+  .hero h1{font-size:clamp(40px,12vw,48px);max-width:15ch}
+  .actions{align-items:flex-start;flex-direction:column;gap:10px}
+  .hero-carousel{height:282px}
+  .thumbnail-card{width:226px}
+  .thumb-art{height:146px}
+}
+
+@media(min-width:600px){
+  .hero{padding-top:48px;padding-bottom:56px;gap:34px}
+  .hero h1{font-size:clamp(52px,7vw,64px);max-width:17ch}
+  .hero-carousel{height:320px}
+  .thumbnail-track{padding-left:24px}
+  .thumbnail-card{width:250px}
+  .thumb-art{height:160px}
+}
+
+@media(min-width:900px){
+  .nav{height:78px}
+  .hero{grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr);gap:44px;padding:56px 0 64px}
+  .hero h1{font-size:clamp(54px,5.2vw,68px);max-width:13ch}
+  .hero-carousel{width:auto;height:400px;margin-left:0}
+  .thumbnail-track{padding:10px 0 0;align-items:flex-start}
+  .thumbnail-card{width:255px}
+  .thumb-art{height:165px}
+}
+
+@media(min-width:1200px){
+  .nav{height:84px}
+  .hero{grid-template-columns:minmax(0,1.12fr) minmax(420px,.88fr);gap:56px;padding:64px 0 72px}
+  .hero h1{font-size:clamp(62px,5.5vw,76px);max-width:14ch}
+  .lead{font-size:17px}
+  .hero-carousel{height:420px}
+  .thumbnail-card{width:270px}
+  .thumb-art{height:178px}
+}

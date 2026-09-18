@@ -2,7 +2,7 @@ import { createI18n } from 'vue-i18n';
 
 export const messages = {
   en: {
-    nav: { opportunities: 'Signals', how: 'How it works', why: 'Why Viralab', access: 'Get early access' },
+    nav: { opportunities: 'Signals', how: 'How it works', why: 'Why Viralab', login: 'Log in', access: 'Get early access' },
     hero: {
       eyebrow: 'YOUTUBE OPPORTUNITY INTELLIGENCE',
       title: 'See which YouTube channels and topics are breaking their own baseline',

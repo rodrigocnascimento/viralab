@@ -28,8 +28,11 @@ async function submitWaitlist() {
 <header class="nav container">
   <a class="brand brand-logo" href="#top" aria-label="Viralab home"><img src="/viralab-logo.svg" alt="Viralab"></a>
   <nav :class="{ open: menuOpen }" aria-label="Main navigation"><a href="#signals" @click="menuOpen=false">{{ t('nav.opportunities') }}</a><a href="#how" @click="menuOpen=false">{{ t('nav.how') }}</a><a href="#about" @click="menuOpen=false">{{ t('nav.why') }}</a></nav>
-  <a class="button button-small" href="#access">{{ t('nav.access') }}</a>
-  <button class="menu-toggle" :aria-expanded="menuOpen" aria-label="Toggle navigation" @click="menuOpen=!menuOpen"><span></span><span></span></button>
+  <div class="nav-actions">
+    <a class="login-button" href="/login">{{ t('nav.login') }}</a>
+    <a class="button button-small nav-access" href="#access">{{ t('nav.access') }}</a>
+    <button class="menu-toggle" :aria-expanded="menuOpen" aria-label="Toggle navigation" @click="menuOpen=!menuOpen"><span></span><span></span></button>
+  </div>
 </header>
 
 <main id="top">
