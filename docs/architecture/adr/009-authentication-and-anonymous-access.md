@@ -24,10 +24,10 @@ Browser fingerprinting based on canvas, WebGL, fonts or hardware is deliberately
 
 1. **Security rate limit:** 30 requests/minute/IP using Cloudflare Rate Limiting Binding. This protects infrastructure and is not a product entitlement.
 2. **Anonymous product quota:** 10 successful Explorer consultations/day per anonymous browser identity.
-3. **Authenticated login bonus:** after the anonymous allowance is exhausted, signing in unlocks 5 additional Explorer consultations/day per account.
+3. **First-signup bonus:** the first account registration grants a one-time pool of 5 additional Explorer consultations.
 4. **Circumvention ceiling:** 50 anonymous Explorer consultations/day per hashed IP. This limits casual private/incognito-window resets without treating an IP as a person.
 
-Authentication is therefore an acquisition step, not an unlimited entitlement. Future paid-plan entitlements will be evaluated independently and can bypass the free allowance.
+Registration is therefore an acquisition step, not a repeatable login reward or unlimited entitlement. Future paid-plan entitlements will be evaluated independently and can bypass the free allowance.
 
 ### Anonymous identity
 
@@ -41,9 +41,9 @@ The API never persists raw IP addresses. It derives a one-way SHA-256 key before
 
 ### Quota state
 
-Daily counters require coordinated read-modify-write semantics. Cloudflare Workers KV is explicitly eventually consistent and does not provide atomic transactions, so it is not authoritative enough for quota enforcement. A SQLite-backed Durable Object is used instead for strongly consistent counter state.
+Anonymous daily counters require coordinated read-modify-write semantics. Cloudflare Workers KV is explicitly eventually consistent and does not provide atomic transactions, so it is not authoritative enough for quota enforcement. A SQLite-backed Durable Object is used instead for strongly consistent counter state.
 
-The quota day is UTC. Counter state is keyed by quota subject and day. The response exposes the limit, remaining allowance and reset timestamp.
+The anonymous quota day is UTC. Anonymous counter state is keyed by quota subject and day. The signup bonus is different: it is persisted on the Viralab profile and never resets.
 
 ### Exhaustion contract
 
@@ -61,7 +61,7 @@ When either anonymous daily quota is exhausted, the API returns:
 }
 ```
 
-The web client routes to `/login?reason=anonymous_quota`. Only that route renders quota-exhaustion messaging. A normal `/login` renders neutral authentication copy. Signing in after exhaustion unlocks a 5-search daily account bonus; the secondary “View paid plans” CTA remains reserved for the later entitlement layer.
+The web client routes to `/login?reason=anonymous_quota`. Only that route renders quota-exhaustion messaging. A normal `/login` renders neutral authentication copy. Creating an account for the first time grants a one-time 5-search bonus; the secondary “View paid plans” CTA remains reserved for the later entitlement layer.
 
 ## Security boundaries
 
@@ -78,7 +78,7 @@ The web client routes to `/login?reason=anonymous_quota`. Only that route render
 | Capability | Anonymous | Authenticated |
 | --- | --- | --- |
 | Landing/sample | Yes | Yes |
-| Explorer | 10/day/browser; secondary 50/day/IP | 10 anonymous/browser + 5 daily account bonus after sign-in |
+| Explorer | 10/day/browser; secondary 50/day/IP | 10/day/browser + one-time 5-search signup bonus |
 | Saved searches | No | Planned |
 | Watchlists/alerts | No | Planned |
 | Account/profile | No | Yes |
