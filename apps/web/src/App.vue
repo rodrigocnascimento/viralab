@@ -13,12 +13,12 @@ const niche = ref('');
 
 const carouselItems = computed(() => [
   { label: t('carousel.discoverNiches'), title: t('carousel.smallChannels'), metric: '+184%' },
-  { label: t('carousel.discoverTrends'), title: t('carousel.topicsMoving'), metric: '7 rising' },
+  { label: t('carousel.discoverTrends'), title: t('carousel.topicsMoving'), metric: t('carousel.risingMetric', { count: 7 }) },
   { label: t('carousel.findOutliers'), title: t('carousel.videosEscaping'), metric: '12.8×' },
   { label: t('carousel.trackBreakouts'), title: t('carousel.channelsLeaving'), metric: '+327%' },
   { label: t('carousel.moveEarly'), title: t('carousel.signalBeforeConsensus'), metric: '4.2×' },
   { label: t('carousel.discoverNiches'), title: t('carousel.smallChannels'), metric: '+184%' },
-  { label: t('carousel.discoverTrends'), title: t('carousel.topicsMoving'), metric: '7 rising' },
+  { label: t('carousel.discoverTrends'), title: t('carousel.topicsMoving'), metric: t('carousel.risingMetric', { count: 7 }) },
   { label: t('carousel.findOutliers'), title: t('carousel.videosEscaping'), metric: '12.8×' },
   { label: t('carousel.trackBreakouts'), title: t('carousel.channelsLeaving'), metric: '+327%' },
   { label: t('carousel.moveEarly'), title: t('carousel.signalBeforeConsensus'), metric: '4.2×' },
@@ -52,7 +52,7 @@ async function submitWaitlist() {
 <section class="hero container">
  <div class="hero-copy"><p class="eyebrow">{{t('hero.eyebrow')}}</p><h1>{{t('hero.title')}} <em>{{t('hero.emphasis')}}</em></h1><p class="lead">{{t('hero.lead')}}</p>
  <div class="actions"><a class="button" href="#access">{{t('hero.primary')}} <span>→</span></a><a class="text-link" href="#sample">{{t('hero.secondary')}} ↓</a></div><p class="microcopy">{{t('hero.microcopy')}}</p></div>
- <div class="hero-carousel" aria-label="Viralab opportunity intelligence examples"><div class="thumbnail-track"><article v-for="(item, index) in carouselItems" :key="`${item.label}-${index}`" class="thumbnail-card" :class="`thumb-${index+1}`"><div class="thumb-art"><span>{{ String(index+1).padStart(2,'0') }}</span><i></i></div><p>{{item.label}}</p><h3>{{item.title}}</h3><strong>{{item.metric}}</strong></article></div></div>
+ <div class="hero-carousel"  :aria-label="t('carousel.ariaLabel')"><div class="thumbnail-track"><article v-for="(item, index) in carouselItems" :key="`${item.label}-${index}`" class="thumbnail-card" :class="`thumb-${index+1}`"><div class="thumb-art"><span>{{ String(index+1).padStart(2,'0') }}</span><i></i></div><p>{{item.label}}</p><h3>{{item.title}}</h3><strong>{{item.metric}}</strong></article></div></div>
 </section>
 
 <section id="sample" class="sample-section"><div class="container sample-grid"><div><p class="eyebrow">{{t('sample.eyebrow')}}</p><h2>{{t('sample.title')}}</h2><p>{{t('sample.note')}}</p></div><article class="dashboard-card"><div class="dash-head"><span>{{t('sample.observed')}}</span><b>91 <small>/ 100</small></b></div><h3>Oficina do João</h3><p>{{t('sample.context')}}</p><div class="chart"><span style="height:18%"></span><span style="height:24%"></span><span style="height:29%"></span><span style="height:38%"></span><span style="height:58%"></span><span style="height:88%"></span></div><div class="dash-stats"><span><small>{{t('sample.subscribers')}}</small><b>18.4K</b></span><span><small>{{t('sample.growth')}}</small><b>+327%</b></span><span><small>{{t('sample.velocity')}}</small><b>4.2×</b></span></div><span class="sample-disclaimer">{{ t('sample.disclaimer') }}</span></article></div></section>
