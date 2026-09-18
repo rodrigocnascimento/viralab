@@ -74,22 +74,17 @@ export default {
           const anonymousId = request.headers.get('x-viralab-anonymous-id');
           if (!validAnonymousId(anonymousId)) return { kind: 'anonymous_id_required' as const };
 
-          const consume = async (subject: string, limit: number): Promise<QuotaDecision> => {
-            const id = env.ANONYMOUS_QUOTA.idFromName(subject);
-            const response = await env.ANONYMOUS_QUOTA.get(id).fetch(new Request('https://quota.internal/consume', {
-              method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ limit, now: now.toISOString() }),
-            }));
-            if (!response.ok) throw new Error('anonymous_quota_unavailable');
-            return response.json() as Promise<QuotaDecision>;
-          };
-
           const browserKey = await sha256Key('anonymous-browser', anonymousId);
-          const browser = await consume(`browser:${browserKey}`, 10);
-          if (!browser.allowed) return { kind: 'quota_exhausted' as const, quota: browser };
-
-          const ipDaily = await consume(`ip:${ipKey}`, 50);
-          if (!ipDaily.allowed) return { kind: 'quota_exhausted' as const, quota: { ...ipDaily, limit: 10, remaining: 0 } };
-          return { kind: 'allowed' as const, quota: browser };
+          const quotaId = env.ANONYMOUS_QUOTA.idFromName(`ip:${ipKey}`);
+          const response = await env.ANONYMOUS_QUOTA.get(quotaId).fetch(new Request('https://quota.internal/consume', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ browserKey, browserLimit: 10, ipLimit: 50, now: now.toISOString() }),
+          }));
+          if (!response.ok) throw new Error('anonymous_quota_unavailable');
+          const quota = await response.json() as QuotaDecision;
+          if (!quota.allowed) return { kind: 'quota_exhausted' as const, quota };
+          return { kind: 'allowed' as const, quota };
         },
         listOpportunities: async (input) => (await opportunities.list(input)).map((row) => ({
           id: row.id, type: row.type, provider: row.provider, score: row.score, confidence: row.confidence, multiplier: row.multiplier,
