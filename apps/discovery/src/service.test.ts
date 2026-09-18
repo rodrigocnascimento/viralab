@@ -13,16 +13,16 @@ const message = {
 };
 
 const providerResult = {
-  quotaCost: 1,
+  quotaCost: 2,
   nextPageToken: null,
   items: [
     {
       channel: { providerId: 'channel-1', title: 'Channel' },
-      video: { providerId: 'video-1', title: 'One', description: null, thumbnailUrl: null, publishedAt: null },
+      video: { providerId: 'video-1', title: 'One', description: null, thumbnailUrl: null, publishedAt: null, viewCount: 1000n, likeCount: 50n, commentCount: 5n },
     },
     {
       channel: { providerId: 'channel-1', title: 'Channel' },
-      video: { providerId: 'video-2', title: 'Two', description: null, thumbnailUrl: null, publishedAt: null },
+      video: { providerId: 'video-2', title: 'Two', description: null, thumbnailUrl: null, publishedAt: null, viewCount: 1000n, likeCount: 50n, commentCount: 5n },
     },
   ],
 };
@@ -63,7 +63,7 @@ describe('processDiscovery', () => {
       videosProcessed: 2,
       channelIngestionsEnqueued: 1,
       channelIngestionsSkipped: 0,
-      quotaCost: 1,
+      quotaCost: 2,
     });
     expect(persistence.upsertChannel).toHaveBeenCalledTimes(1);
     expect(persistence.upsertVideo).toHaveBeenCalledTimes(2);
@@ -122,7 +122,7 @@ describe('processDiscovery', () => {
     const provider = {
       provider: 'youtube' as const,
       searchVideos: vi.fn(async () => ({
-        quotaCost: 1,
+        quotaCost: 2,
         nextPageToken: null,
         items: [providerResult.items[0]!],
       })),
@@ -157,7 +157,7 @@ describe('processDiscovery', () => {
     const provider = {
       provider: 'youtube' as const,
       searchVideos: vi.fn(async () => ({
-        quotaCost: 1,
+        quotaCost: 2,
         nextPageToken: null,
         items: [providerResult.items[0]!],
       })),
@@ -194,7 +194,7 @@ describe('processDiscovery', () => {
   it('rejects a worker/provider mismatch before calling the provider', async () => {
     const provider = {
       provider: 'youtube' as const,
-      searchVideos: vi.fn(async () => ({ quotaCost: 1, nextPageToken: null, items: [] })),
+      searchVideos: vi.fn(async () => ({ quotaCost: 2, nextPageToken: null, items: [] })),
     };
     const mismatched = { ...message, provider: 'tiktok' as never };
 
