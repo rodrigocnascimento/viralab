@@ -95,7 +95,7 @@ Queue delivery is at-least-once. Repeated ingestion refreshes the same canonical
 Structured events:
 
 - `channel_ingestion.started`;
-- `youtube.request.completed`;
+- `provider.request.completed` (with `provider` and provider operation, e.g. YouTube `channels.list`);
 - `channel_ingestion.persisted`;
 - `channel_ingestion.failed`.
 
@@ -157,12 +157,15 @@ packages/database
 - tests.
 
 ### Case 03.3 — Ingestion Worker
-- new Worker app;
-- queue consumer + DLQ;
-- Hyperdrive;
-- structured logs;
-- retry/ack policy;
-- tests.
+- dedicated `apps/channel-ingestion` Worker;
+- queue consumer contract for `viralab-channel-ingestion` with `viralab-channel-ingestion-dlq`;
+- Hyperdrive-backed persistence;
+- provider adapter composition (YouTube for the MVP);
+- structured provider-neutral logs;
+- retry/ack policy driven by provider error classification;
+- unit tests for orchestration, persistence mapping and retry policy.
+
+Runtime queue creation and production deployment remain Case 03.5 concerns so merging the application code does not require the new Cloudflare resources to exist yet.
 
 ### Case 03.4 — Discovery handoff
 - producer binding;
