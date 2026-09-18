@@ -1,5 +1,23 @@
 import { createI18n } from 'vue-i18n';
 
+export type SupportedLocale = 'en' | 'pt-BR';
+
+export const resolveLocale = (languages: readonly string[]): SupportedLocale => {
+  for (const language of languages) {
+    const normalized = language.trim().toLowerCase();
+    if (normalized === 'pt' || normalized.startsWith('pt-')) return 'pt-BR';
+    if (normalized === 'en' || normalized.startsWith('en-')) return 'en';
+  }
+  return 'en';
+};
+
+const browserLanguages = (): string[] => {
+  if (typeof navigator === 'undefined') return [];
+  const preferred = navigator.languages?.length ? [...navigator.languages] : [];
+  if (navigator.language && !preferred.includes(navigator.language)) preferred.push(navigator.language);
+  return preferred;
+};
+
 export const messages = {
   en: {
     nav: { opportunities: 'Signals', how: 'How it works', why: 'Why Viralab', login: 'Log in', access: 'Get early access' },
@@ -59,8 +77,161 @@ export const messages = {
       tagline: 'YouTube Opportunity Intelligence', note: 'Viralab is YouTube opportunity intelligence — not a thumbnail maker, viral score app, or social agency.',
       development: 'Viralab is in active development. Signal models and historical tracking are evolving.',
       privacy: 'Privacy', terms: 'Terms'
+    },
+    auth: {
+      badgeQuota: 'SIGN UP AND GET +5 SEARCHES',
+      badgeDefault: 'SIGN IN TO VIRALAB',
+      quotaEyebrow: 'TODAY’S FREE LIMIT REACHED',
+      quotaTitle: 'Create your account and get 5 more searches.',
+      quotaText: 'You used today’s 10 anonymous searches. On first signup, your account receives a one-time bonus of 5 free Explorer searches.',
+      defaultEyebrow: 'SIGN IN TO VIRALAB',
+      defaultTitle: 'Keep exploring signals.',
+      defaultText: 'Sign in to use Viralab with your account. If you are new, your first signup includes a one-time bonus of 5 free searches.',
+      google: 'Continue with Google',
+      plans: 'View paid plans',
+      plansNote: 'Plans will be available in a later release.',
+      errors: {
+        providerDisabled: 'Google sign-in is not enabled on the server yet.',
+        signInFailed: 'We could not start Google sign-in. Please try again.'
+      },
+      callback: {
+        eyebrow: 'VIRALAB AUTH',
+        finishing: 'Finishing sign in…',
+        failed: 'Login failed.',
+        missingCode: 'Missing OAuth authorization code.'
+      }
+    },
+    explorer: {
+      badgeDataset: 'VIRALAB DATASET · YOUTUBE',
+      badgeAnonymous: '{remaining}/{limit} FREE QUERIES LEFT TODAY',
+      badgeSignup: '{remaining}/{limit} SIGNUP BONUS SEARCHES LEFT',
+      eyebrow: 'OPPORTUNITY EXPLORER',
+      title: 'Signals before consensus.',
+      intro: 'Outliers computed from Viralab’s dataset. Opening this screen does not query YouTube.',
+      minScore: 'Minimum score',
+      loading: 'Loading signals…',
+      retry: 'Retry',
+      empty: 'No signals reach this score yet. The dataset is still being refreshed.',
+      loadError: 'Unable to load signals right now.',
+      bonusExhausted: 'Your signup bonus is finished. Anonymous searches return on the next daily cycle.',
+      subscribers: 'subscribers',
+      openVideo: 'Open video ↗',
+      multiplier: 'MULTIPLIER',
+      viewsBaseline: 'VIEWS / BASELINE',
+      confidence: 'CONFIDENCE',
+      modelNote: 'MVP model: video views compared with the channel’s lifetime average views per video. Case 07 temporal history will replace this baseline with observed windows.'
+    }
+  },
+  'pt-BR': {
+    nav: { opportunities: 'Sinais', how: 'Como funciona', why: 'Por que Viralab', login: 'Entrar', access: 'Acesso antecipado' },
+    hero: {
+      eyebrow: 'INTELIGÊNCIA DE OPORTUNIDADES NO YOUTUBE',
+      title: 'Veja quais canais e temas do YouTube estão rompendo a própria linha de base',
+      emphasis: '— antes que a página de tendências perceba.',
+      lead: 'O Viralab mapeia canais e vídeos, compara o desempenho com a própria linha de base de cada canal e destaca crescimentos incomuns enquanto a oportunidade ainda está no começo.',
+      primary: 'Quero acesso antecipado', secondary: 'Ver um sinal de exemplo',
+      microcopy: 'Feito para operadores de canais, pesquisadores e criadores que valorizam timing — não listas de tendências.',
+      sample: 'SINAL DE EXEMPLO', signal: 'VELOCIDADE DE BREAKOUT', velocity: 'vs. linha de base do canal'
+    },
+    sample: {
+      eyebrow: 'UM SINAL, DE FORMA CONCRETA', title: 'É esse tipo de movimento que o Viralab foi criado para revelar.',
+      context: 'Exemplo · Automotivo · Brasil', note: 'A pergunta útil não é “esse canal é grande?”. É “esse canal está se movendo de forma incomum em relação a ele mesmo?”.',
+      observed: 'Sinal observado', subscribers: 'Inscritos', growth: 'Crescimento do exemplo', velocity: 'Velocidade relativa'
+    },
+    problem: {
+      eyebrow: 'TIMING É A VANTAGEM', title: 'Quando uma tendência já parece óbvia, a parte mais fácil da oportunidade pode ter passado.',
+      early: 'SINAL INICIAL', breakout: 'BREAKOUT', viral: 'MASSA',
+      note: 'O Viralab foi criado para revelar o movimento entre o sinal inicial e a tendência óbvia.'
+    },
+    opportunities: {
+      eyebrow: 'O QUE O VIRALAB PROCURA', title: 'Três sinais. Três decisões.',
+      breakoutTitle: 'Canais em breakout', breakoutText: 'Canais se movendo materialmente fora da própria faixa normal de desempenho.',
+      breakoutAction: 'Vale acompanhar, buscar parceria ou tratar como indicador antecipado.',
+      outlierTitle: 'Vídeos fora da curva', outlierText: 'Vídeos performando muito acima da faixa típica do canal.',
+      outlierAction: 'Encontre o tema, formato ou abordagem que está ressoando. Copie o padrão, não a thumbnail.',
+      nicheTitle: 'Momentum de nicho', nicheText: 'Movimento incomum semelhante aparecendo em vários canais.',
+      nicheAction: 'Isso é evidência de um mercado se formando — não apenas um upload com sorte.',
+      sample: 'EXEMPLO', subscribers: 'inscritos', baseline: 'vs. base', outlier: 'OUTLIER', channelsRising: 'canais subindo', emerging: 'EMERGENTE'
+    },
+    intelligence: {
+      eyebrow: 'DESEMPENHO RELATIVO > VIEWS BRUTAS', title: 'Mais útil que uma página genérica de tendências.',
+      text: 'Views brutas mostram o que já é popular. O Viralab pergunta o que mudou, quão incomum essa mudança é para o canal e se movimentos semelhantes estão aparecendo em outros lugares.',
+      historical: 'Desempenho observado', engine: 'Sinais de oportunidade'
+    },
+    score: {
+      eyebrow: 'COMO O SCORE PENSA', title: 'Um sinal precisa de contexto, não só de um número grande.',
+      baseline: 'Linha de base', baselineText: 'Compare um canal ou vídeo com o próprio desempenho normal.',
+      velocity: 'Velocidade', velocityText: 'Meça o quanto o desempenho observado se afastou dessa linha de base.',
+      confidence: 'Confiança', confidenceText: 'Evidência mais forte gera sinal mais forte; evidência fraca permanece visivelmente incerta.',
+      note: 'O modelo de score evolui conforme o Viralab acumula histórico de observações. Mudanças de método são documentadas em vez de escondidas.'
+    },
+    moat: {
+      eyebrow: 'A VANTAGEM COMPOSTA DOS DADOS', title: 'Um snapshot mostra o que aconteceu.', emphasis: 'O histórico ajuda a explicar o que está mudando.',
+      text: 'Cada observação torna a linha de base mais útil. Com o tempo, o Viralab consegue separar aceleração sustentada de ruído com mais contexto — transformando métricas públicas em um dataset acumulado de oportunidades.'
+    },
+    access: {
+      eyebrow: 'ACESSO ANTECIPADO', title: 'Comece pelos sinais, não pelo hype.',
+      text: 'Entre na lista de acesso antecipado. Avisaremos quando o feed de sinais estiver pesquisável e acionável.',
+      email: 'E-mail profissional', role: 'Eu sou…', niche: 'Nicho no YouTube (opcional)', submit: 'Entrar na lista',
+      success: 'Você está na lista. Vamos enviar os primeiros sinais, não uma newsletter.',
+      privacy: 'Sem cadência de newsletter. Apenas acesso antecipado e atualizações de produto.'
+    },
+    footer: {
+      tagline: 'Inteligência de Oportunidades no YouTube', note: 'Viralab é inteligência de oportunidades no YouTube — não um criador de thumbnails, app de score viral ou agência social.',
+      development: 'O Viralab está em desenvolvimento ativo. Os modelos de sinais e o histórico ainda estão evoluindo.',
+      privacy: 'Privacidade', terms: 'Termos'
+    },
+    auth: {
+      badgeQuota: 'CADASTRE-SE E GANHE +5 BUSCAS',
+      badgeDefault: 'ENTRAR NO VIRALAB',
+      quotaEyebrow: 'LIMITE GRATUITO DE HOJE ATINGIDO',
+      quotaTitle: 'Crie sua conta e ganhe mais 5 buscas.',
+      quotaText: 'Você usou as 10 consultas anônimas de hoje. No primeiro cadastro, sua conta recebe um bônus único de 5 consultas gratuitas no Explorer.',
+      defaultEyebrow: 'ENTRAR NO VIRALAB',
+      defaultTitle: 'Continue explorando sinais.',
+      defaultText: 'Entre com sua conta para usar o Viralab. Se você ainda não tem conta, o primeiro cadastro inclui um bônus único de 5 consultas gratuitas.',
+      google: 'Entrar ou criar conta com Google',
+      plans: 'Ver planos pagos',
+      plansNote: 'A página de planos será disponibilizada em uma próxima etapa.',
+      errors: {
+        providerDisabled: 'O login com Google ainda não está habilitado no servidor.',
+        signInFailed: 'Não foi possível iniciar o login com Google. Tente novamente.'
+      },
+      callback: {
+        eyebrow: 'AUTENTICAÇÃO VIRALAB',
+        finishing: 'Finalizando login…',
+        failed: 'Falha no login.',
+        missingCode: 'Código de autorização OAuth ausente.'
+      }
+    },
+    explorer: {
+      badgeDataset: 'DATASET VIRALAB · YOUTUBE',
+      badgeAnonymous: '{remaining}/{limit} CONSULTAS GRÁTIS HOJE',
+      badgeSignup: '{remaining}/{limit} BUSCAS BÔNUS DO CADASTRO',
+      eyebrow: 'EXPLORADOR DE OPORTUNIDADES',
+      title: 'Sinais antes do consenso.',
+      intro: 'Outliers calculados sobre o dataset do Viralab. Abrir esta tela não consulta o YouTube.',
+      minScore: 'Score mínimo',
+      loading: 'Calculando sinais…',
+      retry: 'Tentar novamente',
+      empty: 'Nenhum sinal atingiu este score ainda. O dataset continua sendo atualizado.',
+      loadError: 'Não foi possível carregar os sinais agora.',
+      bonusExhausted: 'Seu bônus de cadastro terminou. As consultas anônimas voltam no próximo ciclo diário.',
+      subscribers: 'inscritos',
+      openVideo: 'Abrir vídeo ↗',
+      multiplier: 'MULTIPLICADOR',
+      viewsBaseline: 'VIEWS / BASE',
+      confidence: 'CONFIANÇA',
+      modelNote: 'Modelo MVP: views do vídeo comparadas à média histórica de views por vídeo do canal. O histórico temporal da Case 07 substituirá essa linha de base por janelas observadas.'
     }
   }
 } as const;
 
-export const i18n = createI18n({ legacy: false, locale: 'en', fallbackLocale: 'en', messages });
+export const initialLocale = resolveLocale(browserLanguages());
+
+export const i18n = createI18n({
+  legacy: false,
+  locale: initialLocale,
+  fallbackLocale: 'en',
+  messages,
+});
