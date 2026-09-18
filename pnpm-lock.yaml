@@ -40,6 +40,28 @@ importers:
         specifier: ^4.35.0
         version: 4.133.0(@types/node@24.13.5)
 
+  apps/channel-ingestion:
+    dependencies:
+      '@viralab/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@viralab/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@viralab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@viralab/youtube':
+        specifier: workspace:*
+        version: link:../../packages/youtube
+    devDependencies:
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@24.13.5)(tsx@4.23.13)
+      wrangler:
+        specifier: ^4.35.0
+        version: 4.133.0(@types/node@24.13.5)
+
   apps/discovery:
     dependencies:
       '@viralab/database':
