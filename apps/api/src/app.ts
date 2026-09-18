@@ -22,7 +22,12 @@ export interface DiscoveryApiDeps {
   checkWaitlistRateLimit?(input: { email: string; request: Request }): Promise<{ allowed: boolean; retryAfterSeconds: number }>;
   resolveAuth?(request: Request): Promise<AuthContext | null>;
   ensureProfile?(input: { id: string; email?: string | null; now: Date }): Promise<{ id: string; email: string | null; displayName: string | null; avatarUrl: string | null }>;
-  checkAnonymousExplorerRateLimit?(request: Request): Promise<{ allowed: boolean; retryAfterSeconds: number }>;
+  checkAnonymousExplorerAccess?(request: Request, now: Date): Promise<
+    | { kind: 'allowed'; quota: { limit: number; remaining: number; resetsAt: string } }
+    | { kind: 'rate_limited'; retryAfterSeconds: number }
+    | { kind: 'quota_exhausted'; quota: { limit: number; remaining: number; resetsAt: string } }
+    | { kind: 'anonymous_id_required' }
+  >;
   listOpportunities?(input: { minScore: number; limit: number; detectedAfter?: Date }): Promise<OpportunityListItem[]>;
   allowedOrigins?: string[];
   now?: () => Date;
@@ -36,7 +41,7 @@ const corsHeaders = (request: Request, allowedOrigins: string[] = []): Headers =
   if (origin && allowedOrigins.includes(origin)) {
     headers.set('access-control-allow-origin', origin);
     headers.set('access-control-allow-methods', 'GET, POST, OPTIONS');
-    headers.set('access-control-allow-headers', 'authorization, content-type');
+    headers.set('access-control-allow-headers', 'authorization, content-type, x-viralab-anonymous-id');
     headers.set('access-control-max-age', '86400');
     headers.set('vary', 'Origin');
   }
@@ -86,12 +91,18 @@ export const handleRequest = async (request: Request, deps: DiscoveryApiDeps): P
     if (deps.resolveAuth) {
       try { auth = await deps.resolveAuth(request); } catch { return json({ error: 'invalid_access_token' }, 401, cors); }
     }
-    if (!auth && deps.checkAnonymousExplorerRateLimit) {
-      const decision = await deps.checkAnonymousExplorerRateLimit(request);
-      if (!decision.allowed) {
-        const headers = new Headers(cors); headers.set('retry-after', String(decision.retryAfterSeconds));
-        return json({ error: 'anonymous_rate_limited', upgrade: 'sign_in' }, 429, headers);
+    let anonymousQuota: { limit: number; remaining: number; resetsAt: string } | undefined;
+    if (!auth && deps.checkAnonymousExplorerAccess) {
+      const access = await deps.checkAnonymousExplorerAccess(request, deps.now?.() ?? new Date());
+      if (access.kind === 'anonymous_id_required') return json({ error: 'anonymous_id_required' }, 400, cors);
+      if (access.kind === 'rate_limited') {
+        const headers = new Headers(cors); headers.set('retry-after', String(access.retryAfterSeconds));
+        return json({ error: 'rate_limited' }, 429, headers);
       }
+      if (access.kind === 'quota_exhausted') {
+        return json({ error: 'anonymous_quota_exhausted', upgrade: 'sign_in', quota: access.quota }, 429, cors);
+      }
+      anonymousQuota = access.quota;
     }
     const minScoreRaw = Number(url.searchParams.get('minScore') ?? 40);
     const limitRaw = Number(url.searchParams.get('limit') ?? 30);
@@ -105,7 +116,7 @@ export const handleRequest = async (request: Request, deps: DiscoveryApiDeps): P
       if (Number.isNaN(detectedAfter.getTime())) return json({ error: 'invalid_query' }, 400, cors);
     }
     const items = await deps.listOpportunities({ minScore: minScoreRaw, limit: limitRaw, detectedAfter });
-    return json({ items, meta: { count: items.length, minScore: minScoreRaw, limit: limitRaw } }, 200, cors);
+    return json({ items, meta: { count: items.length, minScore: minScoreRaw, limit: limitRaw, ...(anonymousQuota ? { anonymousQuota } : {}) } }, 200, cors);
   }
 
   if (request.method === 'POST' && url.pathname === '/api/v1/waitlist') {
