@@ -37,4 +37,4 @@ simple = { limit = 30, period = 60 }
 [[ratelimits]]
 name = "WAITLIST_EMAIL_RATE_LIMITER"
 namespace_id = "1002"
-simple = { limit = 3, period = 3600 }
+simple = { limit = 3, period = 60 }
