@@ -1,3 +1,4 @@
+import type { AuthContext } from '@viralab/auth';
 import { discoveryRequestSchema, normalizeDiscoveryQuery, waitlistRequestSchema, type DiscoveryQueueMessage } from '@viralab/shared';
 
 export type OpportunityListItem = {
@@ -19,6 +20,9 @@ export interface DiscoveryApiDeps {
   enqueue(message: DiscoveryQueueMessage): Promise<void>;
   joinWaitlist?(input: { email: string; role: string; niche?: string; now: Date }): Promise<void>;
   checkWaitlistRateLimit?(input: { email: string; request: Request }): Promise<{ allowed: boolean; retryAfterSeconds: number }>;
+  resolveAuth?(request: Request): Promise<AuthContext | null>;
+  ensureProfile?(input: { id: string; email?: string | null; now: Date }): Promise<{ id: string; email: string | null; displayName: string | null; avatarUrl: string | null }>;
+  checkAnonymousExplorerRateLimit?(request: Request): Promise<{ allowed: boolean; retryAfterSeconds: number }>;
   listOpportunities?(input: { minScore: number; limit: number; detectedAfter?: Date }): Promise<OpportunityListItem[]>;
   allowedOrigins?: string[];
   now?: () => Date;
@@ -32,7 +36,7 @@ const corsHeaders = (request: Request, allowedOrigins: string[] = []): Headers =
   if (origin && allowedOrigins.includes(origin)) {
     headers.set('access-control-allow-origin', origin);
     headers.set('access-control-allow-methods', 'GET, POST, OPTIONS');
-    headers.set('access-control-allow-headers', 'content-type');
+    headers.set('access-control-allow-headers', 'authorization, content-type');
     headers.set('access-control-max-age', '86400');
     headers.set('vary', 'Origin');
   }
@@ -67,8 +71,28 @@ export const handleRequest = async (request: Request, deps: DiscoveryApiDeps): P
     }
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/v1/me') {
+    if (!deps.resolveAuth || !deps.ensureProfile) return json({ error: 'not_available' }, 503, cors);
+    let auth: AuthContext | null;
+    try { auth = await deps.resolveAuth(request); } catch { return json({ error: 'invalid_access_token' }, 401, cors); }
+    if (!auth) return json({ error: 'authentication_required' }, 401, cors);
+    const profile = await deps.ensureProfile({ id: auth.userId, email: auth.email, now: deps.now?.() ?? new Date() });
+    return json({ user: { id: auth.userId, email: auth.email, provider: auth.provider }, profile }, 200, cors);
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/v1/opportunities') {
     if (!deps.listOpportunities) return json({ error: 'not_available' }, 503, cors);
+    let auth: AuthContext | null = null;
+    if (deps.resolveAuth) {
+      try { auth = await deps.resolveAuth(request); } catch { return json({ error: 'invalid_access_token' }, 401, cors); }
+    }
+    if (!auth && deps.checkAnonymousExplorerRateLimit) {
+      const decision = await deps.checkAnonymousExplorerRateLimit(request);
+      if (!decision.allowed) {
+        const headers = new Headers(cors); headers.set('retry-after', String(decision.retryAfterSeconds));
+        return json({ error: 'anonymous_rate_limited', upgrade: 'sign_in' }, 429, headers);
+      }
+    }
     const minScoreRaw = Number(url.searchParams.get('minScore') ?? 40);
     const limitRaw = Number(url.searchParams.get('limit') ?? 30);
     const detectedAfterRaw = url.searchParams.get('detectedAfter');
