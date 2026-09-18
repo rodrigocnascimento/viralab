@@ -30,7 +30,10 @@ const providerResult = {
 const makePersistence = () => ({
   upsertChannel: vi.fn(async () => 'internal-channel-id'),
   upsertVideo: vi.fn(async () => 'internal-video-id'),
-  claimChannelForIngestion: vi.fn(async () => true),
+  claimChannelForIngestion: vi.fn(async () => ({
+    status: 'claimed' as const,
+    ingestionJobId: '33333333-3333-4333-8333-333333333333',
+  })),
   releaseChannelIngestionClaim: vi.fn(async () => undefined),
 });
 
@@ -69,6 +72,8 @@ describe('processDiscovery', () => {
       channelId: 'internal-channel-id',
       provider: 'youtube',
       providerId: 'channel-1',
+      ownerJobId: message.jobId,
+      ingestionJobId: '33333333-3333-4333-8333-333333333333',
       requestedAt: new Date('2026-09-16T12:01:00.000Z'),
       freshAfter: new Date('2026-09-16T06:01:00.000Z'),
       claimExpiredBefore: new Date('2026-09-16T11:46:00.000Z'),
@@ -92,7 +97,7 @@ describe('processDiscovery', () => {
       searchVideos: vi.fn(async () => providerResult),
     };
     const persistence = makePersistence();
-    persistence.claimChannelForIngestion.mockResolvedValue(false);
+    persistence.claimChannelForIngestion.mockResolvedValue({ status: 'skipped' });
     const enqueueChannelIngestion = vi.fn(async () => undefined);
 
     const result = await processDiscovery(message, {
@@ -140,8 +145,46 @@ describe('processDiscovery', () => {
       channelId: 'internal-channel-id',
       provider: 'youtube',
       providerId: 'channel-1',
-      requestedAt: new Date('2026-09-16T12:01:00.000Z'),
+      ownerJobId: message.jobId,
+      ingestionJobId: '33333333-3333-4333-8333-333333333333',
     });
+  });
+
+
+  it('resumes an owned claim on retry instead of acknowledging an orphaned handoff', async () => {
+    const provider = {
+      provider: 'youtube' as const,
+      searchVideos: vi.fn(async () => ({
+        quotaCost: 1,
+        nextPageToken: null,
+        items: [providerResult.items[0]!],
+      })),
+    };
+    const persistence = makePersistence();
+    persistence.claimChannelForIngestion.mockResolvedValue({
+      status: 'owned',
+      ingestionJobId: '44444444-4444-4444-8444-444444444444',
+    });
+    const enqueueChannelIngestion = vi.fn(async () => undefined);
+
+    const result = await processDiscovery(message, {
+      provider,
+      persistence,
+      maxResults: 25,
+      channelFreshnessMs: 6 * 60 * 60 * 1_000,
+      ingestionClaimTtlMs: 15 * 60 * 1_000,
+      enqueueChannelIngestion,
+      now: () => new Date('2026-09-16T12:02:00.000Z'),
+      randomUUID: () => '55555555-5555-4555-8555-555555555555',
+    });
+
+    expect(result.channelIngestionsEnqueued).toBe(1);
+    expect(result.channelIngestionsSkipped).toBe(0);
+    expect(enqueueChannelIngestion).toHaveBeenCalledWith(expect.objectContaining({
+      jobId: '44444444-4444-4444-8444-444444444444',
+      channelId: 'internal-channel-id',
+      providerChannelId: 'channel-1',
+    }));
   });
 
   it('rejects a worker/provider mismatch before calling the provider', async () => {
