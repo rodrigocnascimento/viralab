@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, isNull, lt, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { analyticsEvents, channels, opportunities, videos, waitlistEntries } from './schema.js';
+import { analyticsEvents, channels, opportunities, profiles, videos, waitlistEntries } from './schema.js';
 import { scoreVideoOutlier } from './opportunity.js';
 export * from './opportunity.js';
 
@@ -350,6 +350,21 @@ export class OpportunityRepository {
   }
 }
 
+
+export class ProfileRepository {
+  constructor(private readonly db: ViralabDatabase) {}
+
+  async ensure(input: { id: string; email?: string | null; now: Date }) {
+    const [row] = await this.db.insert(profiles).values({
+      id: input.id, email: input.email ?? null, updatedAt: input.now,
+    }).onConflictDoUpdate({
+      target: profiles.id,
+      set: { email: input.email ?? null, updatedAt: input.now },
+    }).returning();
+    if (!row) throw new Error('Profile upsert did not return a row');
+    return row;
+  }
+}
 
 export class WaitlistRepository {
   constructor(private readonly db: ViralabDatabase) {}
