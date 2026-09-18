@@ -1,5 +1,12 @@
 import { discoveryRequestSchema, normalizeDiscoveryQuery, type DiscoveryQueueMessage } from '@viralab/shared';
 
+export type OpportunityListItem = {
+  id: string; type: string; provider: string; score: number; confidence: number; multiplier: number;
+  baselineViewCount: string; observedViewCount: string; detectedAt: string;
+  video: { id: string; providerId: string; title: string; thumbnailUrl: string | null; publishedAt: string | null };
+  channel: { id: string; providerId: string; title: string; thumbnailUrl: string | null; subscriberCount: string | null };
+};
+
 export interface DiscoveryApiDeps {
   pingDatabase(): Promise<void>;
   recordSearchPerformed(input: {
@@ -10,6 +17,7 @@ export interface DiscoveryApiDeps {
     normalizedQuery: string;
   }): Promise<void>;
   enqueue(message: DiscoveryQueueMessage): Promise<void>;
+  listOpportunities?(input: { minScore: number; limit: number; detectedAfter?: Date }): Promise<OpportunityListItem[]>;
   allowedOrigins?: string[];
   now?: () => Date;
   randomUUID?: () => string;
@@ -55,6 +63,23 @@ export const handleRequest = async (request: Request, deps: DiscoveryApiDeps): P
     } catch {
       return json({ status: 'degraded', service: 'viralab-api', dependencies: { database: 'down' }, timestamp: new Date().toISOString() }, 503, cors);
     }
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/v1/opportunities') {
+    if (!deps.listOpportunities) return json({ error: 'not_available' }, 503, cors);
+    const minScoreRaw = Number(url.searchParams.get('minScore') ?? 40);
+    const limitRaw = Number(url.searchParams.get('limit') ?? 30);
+    const detectedAfterRaw = url.searchParams.get('detectedAfter');
+    if (!Number.isInteger(minScoreRaw) || minScoreRaw < 0 || minScoreRaw > 100 || !Number.isInteger(limitRaw) || limitRaw < 1 || limitRaw > 100) {
+      return json({ error: 'invalid_query' }, 400, cors);
+    }
+    let detectedAfter: Date | undefined;
+    if (detectedAfterRaw) {
+      detectedAfter = new Date(detectedAfterRaw);
+      if (Number.isNaN(detectedAfter.getTime())) return json({ error: 'invalid_query' }, 400, cors);
+    }
+    const items = await deps.listOpportunities({ minScore: minScoreRaw, limit: limitRaw, detectedAfter });
+    return json({ items, meta: { count: items.length, minScore: minScoreRaw, limit: limitRaw } }, 200, cors);
   }
 
   if (request.method === 'POST' && url.pathname === '/api/v1/discoveries') {
