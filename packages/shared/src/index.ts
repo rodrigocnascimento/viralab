@@ -72,3 +72,10 @@ export const searchPerformedEventSchema = z.object({
 });
 
 export type SearchPerformedEvent = z.infer<typeof searchPerformedEventSchema>;
+
+export const waitlistRequestSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+  role: z.enum(['operator', 'researcher', 'creator']),
+  niche: z.string().trim().max(80).optional().transform((value) => value || undefined),
+}).strict();
+export type WaitlistRequest = z.infer<typeof waitlistRequestSchema>;

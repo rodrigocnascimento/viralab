@@ -1,4 +1,4 @@
-import { discoveryRequestSchema, normalizeDiscoveryQuery, type DiscoveryQueueMessage } from '@viralab/shared';
+import { discoveryRequestSchema, normalizeDiscoveryQuery, waitlistRequestSchema, type DiscoveryQueueMessage } from '@viralab/shared';
 
 export type OpportunityListItem = {
   id: string; type: string; provider: string; score: number; confidence: number; multiplier: number;
@@ -17,6 +17,8 @@ export interface DiscoveryApiDeps {
     normalizedQuery: string;
   }): Promise<void>;
   enqueue(message: DiscoveryQueueMessage): Promise<void>;
+  joinWaitlist?(input: { email: string; role: string; niche?: string; now: Date }): Promise<void>;
+  checkWaitlistRateLimit?(input: { email: string; request: Request }): Promise<{ allowed: boolean; retryAfterSeconds: number }>;
   listOpportunities?(input: { minScore: number; limit: number; detectedAfter?: Date }): Promise<OpportunityListItem[]>;
   allowedOrigins?: string[];
   now?: () => Date;
@@ -80,6 +82,23 @@ export const handleRequest = async (request: Request, deps: DiscoveryApiDeps): P
     }
     const items = await deps.listOpportunities({ minScore: minScoreRaw, limit: limitRaw, detectedAfter });
     return json({ items, meta: { count: items.length, minScore: minScoreRaw, limit: limitRaw } }, 200, cors);
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/v1/waitlist') {
+    if (!deps.joinWaitlist || !deps.checkWaitlistRateLimit) return json({ error: 'not_available' }, 503, cors);
+    const contentLength = Number(request.headers.get('content-length') ?? 0);
+    if (contentLength > 2048) return json({ error: 'payload_too_large' }, 413, cors);
+    let body: unknown;
+    try { body = await request.json(); } catch { return json({ error: 'invalid_json' }, 400, cors); }
+    const parsed = waitlistRequestSchema.safeParse(body);
+    if (!parsed.success) return json({ error: 'invalid_request' }, 400, cors);
+    const decision = await deps.checkWaitlistRateLimit({ email: parsed.data.email, request });
+    if (!decision.allowed) {
+      const headers = new Headers(cors); headers.set('retry-after', String(decision.retryAfterSeconds));
+      return json({ error: 'rate_limited' }, 429, headers);
+    }
+    await deps.joinWaitlist({ ...parsed.data, now: deps.now?.() ?? new Date() });
+    return json({ status: 'accepted' }, 202, cors);
   }
 
   if (request.method === 'POST' && url.pathname === '/api/v1/discoveries') {

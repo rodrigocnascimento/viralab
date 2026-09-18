@@ -141,6 +141,34 @@ describe('discovery API', () => {
     expect(response.status).toBe(400);
   });
 
+  it('accepts an idempotent waitlist request through the guarded dependency', async () => {
+    const joinWaitlist = vi.fn(async () => undefined);
+    const checkWaitlistRateLimit = vi.fn(async () => ({ allowed: true, retryAfterSeconds: 60 }));
+    const response = await handleRequest(new Request('https://api.example.com/api/v1/waitlist', { method: 'POST', headers: { 'content-type': 'application/json', origin: allowedOrigins[0]! }, body: JSON.stringify({ email: 'USER@example.com', role: 'operator', niche: ' Automotive ' }) }), {
+      pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined, joinWaitlist, checkWaitlistRateLimit, allowedOrigins,
+      now: () => new Date('2026-09-18T12:00:00.000Z'),
+    });
+    expect(response.status).toBe(202);
+    expect(joinWaitlist).toHaveBeenCalledWith({ email: 'user@example.com', role: 'operator', niche: 'Automotive', now: new Date('2026-09-18T12:00:00.000Z') });
+  });
+
+  it('rate limits waitlist submissions before persistence', async () => {
+    const joinWaitlist = vi.fn(async () => undefined);
+    const response = await handleRequest(new Request('https://api.example.com/api/v1/waitlist', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'user@example.com', role: 'researcher' }) }), {
+      pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined, joinWaitlist,
+      checkWaitlistRateLimit: async () => ({ allowed: false, retryAfterSeconds: 3600 }),
+    });
+    expect(response.status).toBe(429); expect(response.headers.get('retry-after')).toBe('3600'); expect(joinWaitlist).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized and unexpected waitlist input', async () => {
+    const base = { pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined, joinWaitlist: async () => undefined, checkWaitlistRateLimit: async () => ({ allowed: true, retryAfterSeconds: 60 }) };
+    const oversized = await handleRequest(new Request('https://api.example.com/api/v1/waitlist', { method: 'POST', headers: { 'content-type': 'application/json', 'content-length': '3000' }, body: '{}' }), base);
+    expect(oversized.status).toBe(413);
+    const unexpected = await handleRequest(new Request('https://api.example.com/api/v1/waitlist', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'a@b.com', role: 'creator', admin: true }) }), base);
+    expect(unexpected.status).toBe(400);
+  });
+
   it('reports degraded health when the database is unavailable', async () => {
     const response = await handleRequest(new Request('https://api.example.com/health'), {
       pingDatabase: async () => { throw new Error('down'); },

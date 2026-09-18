@@ -83,6 +83,15 @@ export const opportunities = pgTable('opportunities', {
   index('opportunities_channel_idx').on(table.channelId),
 ]);
 
+export const waitlistEntries = pgTable('waitlist_entries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull(),
+  role: text('role').notNull(),
+  niche: text('niche'),
+  source: text('source').notNull().default('landing'),
+  ...timestamps,
+}, (table) => [uniqueIndex('waitlist_entries_email_uidx').on(table.email)]);
+
 export const analyticsEvents = pgTable('analytics_events', {
   id: uuid('id').primaryKey().defaultRandom(),
   eventName: text('event_name').notNull(),
@@ -102,5 +111,6 @@ export type NewChannel = typeof channels.$inferInsert;
 export type Video = typeof videos.$inferSelect;
 export type NewVideo = typeof videos.$inferInsert;
 export type Opportunity = typeof opportunities.$inferSelect;
+export type WaitlistEntry = typeof waitlistEntries.$inferSelect;
 export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert;

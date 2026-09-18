@@ -1,4 +1,5 @@
-import { createDatabase, DiscoveryRepository, OpportunityRepository } from '@viralab/database';
+import { createDatabase, DiscoveryRepository, OpportunityRepository, WaitlistRepository } from '@viralab/database';
+import { consumeRateLimit, sha256Key, type RateLimitBinding } from '@viralab/rate-limit';
 import type { DiscoveryQueueMessage } from '@viralab/shared';
 import { handleRequest } from './app.js';
 
@@ -11,6 +12,8 @@ type Env = {
   HYPERDRIVE?: { connectionString: string };
   DISCOVERY_QUEUE: QueueProducer;
   CORS_ALLOWED_ORIGINS?: string;
+  WAITLIST_IP_RATE_LIMITER: RateLimitBinding;
+  WAITLIST_EMAIL_RATE_LIMITER: RateLimitBinding;
 };
 
 const databaseUrl = (env: Env): string => {
@@ -30,12 +33,23 @@ export default {
     const database = createDatabase(databaseUrl(env));
     const repository = new DiscoveryRepository(database.db);
     const opportunities = new OpportunityRepository(database.db);
+    const waitlist = new WaitlistRepository(database.db);
 
     try {
       return await handleRequest(request, {
         pingDatabase: () => repository.ping(),
         recordSearchPerformed: (input) => repository.recordSearchPerformed(input),
         enqueue: (message) => env.DISCOVERY_QUEUE.send(message),
+        joinWaitlist: (input) => waitlist.join(input),
+        checkWaitlistRateLimit: async ({ email, request }) => {
+          const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+          const [ipKey, emailKey] = await Promise.all([sha256Key('waitlist-ip', ip), sha256Key('waitlist-email', email)]);
+          const [ipDecision, emailDecision] = await Promise.all([
+            consumeRateLimit(env.WAITLIST_IP_RATE_LIMITER, ipKey, 60),
+            consumeRateLimit(env.WAITLIST_EMAIL_RATE_LIMITER, emailKey, 3600),
+          ]);
+          return !ipDecision.allowed ? ipDecision : emailDecision;
+        },
         listOpportunities: async (input) => (await opportunities.list(input)).map((row) => ({
           id: row.id, type: row.type, provider: row.provider, score: row.score, confidence: row.confidence, multiplier: row.multiplier,
           baselineViewCount: row.baselineViewCount.toString(), observedViewCount: row.observedViewCount.toString(), detectedAt: row.detectedAt.toISOString(),

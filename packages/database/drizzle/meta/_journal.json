@@ -29,6 +29,13 @@
       "when": 1789707600000,
       "tag": "0003_case04_opportunities",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789743000000,
+      "tag": "0004_waitlist",
+      "breakpoints": true
     }
   ]
 }

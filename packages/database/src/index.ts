@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, isNull, lt, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { analyticsEvents, channels, opportunities, videos } from './schema.js';
+import { analyticsEvents, channels, opportunities, videos, waitlistEntries } from './schema.js';
 import { scoreVideoOutlier } from './opportunity.js';
 export * from './opportunity.js';
 
@@ -347,5 +347,14 @@ export class OpportunityRepository {
       .where(and(...conditions))
       .orderBy(desc(opportunities.score), desc(opportunities.detectedAt))
       .limit(input.limit);
+  }
+}
+
+
+export class WaitlistRepository {
+  constructor(private readonly db: ViralabDatabase) {}
+  async join(input: { email: string; role: string; niche?: string | null; now: Date }): Promise<void> {
+    await this.db.insert(waitlistEntries).values({ email: input.email, role: input.role, niche: input.niche ?? null, updatedAt: input.now })
+      .onConflictDoUpdate({ target: waitlistEntries.email, set: { role: input.role, niche: input.niche ?? null, updatedAt: input.now } });
   }
 }
