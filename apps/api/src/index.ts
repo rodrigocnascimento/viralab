@@ -46,7 +46,7 @@ export default {
           const [ipKey, emailKey] = await Promise.all([sha256Key('waitlist-ip', ip), sha256Key('waitlist-email', email)]);
           const [ipDecision, emailDecision] = await Promise.all([
             consumeRateLimit(env.WAITLIST_IP_RATE_LIMITER, ipKey, 60),
-            consumeRateLimit(env.WAITLIST_EMAIL_RATE_LIMITER, emailKey, 3600),
+            consumeRateLimit(env.WAITLIST_EMAIL_RATE_LIMITER, emailKey, 60),
           ]);
           return !ipDecision.allowed ? ipDecision : emailDecision;
         },
