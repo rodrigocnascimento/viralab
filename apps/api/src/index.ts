@@ -1,4 +1,5 @@
-import { createDatabase, DiscoveryRepository, OpportunityRepository, WaitlistRepository } from '@viralab/database';
+import { createDatabase, DiscoveryRepository, OpportunityRepository, ProfileRepository, WaitlistRepository } from '@viralab/database';
+import { verifyOptionalSupabaseAuth } from '@viralab/auth';
 import { consumeRateLimit, sha256Key, type RateLimitBinding } from '@viralab/rate-limit';
 import type { DiscoveryQueueMessage } from '@viralab/shared';
 import { handleRequest } from './app.js';
@@ -14,6 +15,9 @@ type Env = {
   CORS_ALLOWED_ORIGINS?: string;
   WAITLIST_IP_RATE_LIMITER: RateLimitBinding;
   WAITLIST_EMAIL_RATE_LIMITER: RateLimitBinding;
+  ANONYMOUS_EXPLORER_RATE_LIMITER: RateLimitBinding;
+  SUPABASE_URL: string;
+  SUPABASE_PUBLISHABLE_KEY: string;
 };
 
 const databaseUrl = (env: Env): string => {
@@ -34,6 +38,7 @@ export default {
     const repository = new DiscoveryRepository(database.db);
     const opportunities = new OpportunityRepository(database.db);
     const waitlist = new WaitlistRepository(database.db);
+    const profiles = new ProfileRepository(database.db);
 
     try {
       return await handleRequest(request, {
@@ -49,6 +54,16 @@ export default {
             consumeRateLimit(env.WAITLIST_EMAIL_RATE_LIMITER, emailKey, 60),
           ]);
           return !ipDecision.allowed ? ipDecision : emailDecision;
+        },
+        resolveAuth: (request) => verifyOptionalSupabaseAuth(request, {
+          supabaseUrl: env.SUPABASE_URL,
+          publishableKey: env.SUPABASE_PUBLISHABLE_KEY,
+        }),
+        ensureProfile: (input) => profiles.ensure(input),
+        checkAnonymousExplorerRateLimit: async (request) => {
+          const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+          const key = await sha256Key('anonymous-explorer-ip', ip);
+          return consumeRateLimit(env.ANONYMOUS_EXPLORER_RATE_LIMITER, key, 60);
         },
         listOpportunities: async (input) => (await opportunities.list(input)).map((row) => ({
           id: row.id, type: row.type, provider: row.provider, score: row.score, confidence: row.confidence, multiplier: row.multiplier,
