@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.15.1",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "build:libs": "pnpm --filter @viralab/shared build && pnpm --filter @viralab/rate-limit build && pnpm --filter @viralab/providers build && pnpm --filter @viralab/database build && pnpm --filter @viralab/youtube build",
+    "build:libs": "pnpm --filter @viralab/shared build && pnpm --filter @viralab/auth build && pnpm --filter @viralab/rate-limit build && pnpm --filter @viralab/providers build && pnpm --filter @viralab/database build && pnpm --filter @viralab/youtube build",
     "predev": "pnpm build:libs",
     "dev": "pnpm --parallel --filter @viralab/api --filter @viralab/web --filter @viralab/discovery dev",
     "build": "pnpm -r build",
