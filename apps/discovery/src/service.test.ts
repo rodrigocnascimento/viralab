@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { processDiscovery, shouldRetryYouTubeError } from './service.js';
-import { YouTubeGatewayError } from '@viralab/youtube';
+import { ProviderGatewayError } from '@viralab/providers';
+import { processDiscovery, shouldRetryProviderError } from './service.js';
 
 const message = {
   version: 1 as const,
-  type: 'youtube.discovery.requested' as const,
+  type: 'content.discovery.requested' as const,
+  provider: 'youtube' as const,
   jobId: '11111111-1111-4111-8111-111111111111',
   correlationId: '22222222-2222-4222-8222-222222222222',
   query: 'homelab',
@@ -13,18 +14,19 @@ const message = {
 
 describe('processDiscovery', () => {
   it('upserts each channel once per result and each discovered video', async () => {
-    const youtube = {
+    const provider = {
+      provider: 'youtube' as const,
       searchVideos: vi.fn(async () => ({
-        quotaCost: 100,
+        quotaCost: 1,
         nextPageToken: null,
         items: [
           {
-            channel: { youtubeId: 'channel-1', title: 'Channel' },
-            video: { youtubeId: 'video-1', title: 'One', description: null, thumbnailUrl: null, publishedAt: null },
+            channel: { providerId: 'channel-1', title: 'Channel' },
+            video: { providerId: 'video-1', title: 'One', description: null, thumbnailUrl: null, publishedAt: null },
           },
           {
-            channel: { youtubeId: 'channel-1', title: 'Channel' },
-            video: { youtubeId: 'video-2', title: 'Two', description: null, thumbnailUrl: null, publishedAt: null },
+            channel: { providerId: 'channel-1', title: 'Channel' },
+            video: { providerId: 'video-2', title: 'Two', description: null, thumbnailUrl: null, publishedAt: null },
           },
         ],
       })),
@@ -35,19 +37,41 @@ describe('processDiscovery', () => {
     };
 
     const result = await processDiscovery(message, {
-      youtube,
+      provider,
       persistence,
       maxResults: 25,
       now: () => new Date('2026-09-16T12:01:00.000Z'),
     });
 
-    expect(result).toEqual({ channelsProcessed: 1, videosProcessed: 2, quotaCost: 100 });
+    expect(result).toEqual({ provider: 'youtube', channelsProcessed: 1, videosProcessed: 2, quotaCost: 1 });
     expect(persistence.upsertChannel).toHaveBeenCalledTimes(1);
+    expect(persistence.upsertChannel).toHaveBeenCalledWith(expect.objectContaining({
+      provider: 'youtube',
+      providerId: 'channel-1',
+    }));
     expect(persistence.upsertVideo).toHaveBeenCalledTimes(2);
   });
 
+  it('rejects a worker/provider mismatch before calling the provider', async () => {
+    const provider = {
+      provider: 'youtube' as const,
+      searchVideos: vi.fn(async () => ({ quotaCost: 1, nextPageToken: null, items: [] })),
+    };
+    const mismatched = { ...message, provider: 'tiktok' as never };
+
+    await expect(processDiscovery(mismatched, {
+      provider,
+      persistence: {
+        upsertChannel: vi.fn(),
+        upsertVideo: vi.fn(),
+      },
+      maxResults: 25,
+    })).rejects.toThrow('Provider mismatch');
+    expect(provider.searchVideos).not.toHaveBeenCalled();
+  });
+
   it('retries transient provider failures but not quota exhaustion', () => {
-    expect(shouldRetryYouTubeError(new YouTubeGatewayError('provider_unavailable', 'down', true, 503))).toBe(true);
-    expect(shouldRetryYouTubeError(new YouTubeGatewayError('quota_exhausted', 'quota', false, 403))).toBe(false);
+    expect(shouldRetryProviderError(new ProviderGatewayError('youtube', 'provider_unavailable', 'down', true, 503))).toBe(true);
+    expect(shouldRetryProviderError(new ProviderGatewayError('youtube', 'quota_exhausted', 'quota', false, 403))).toBe(false);
   });
 });

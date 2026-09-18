@@ -221,9 +221,17 @@ Exactly-once execution is not assumed.
 
 YouTube quota can become a tighter constraint than compute. Therefore quota accounting belongs in the architecture.
 
-The YouTube adapter should expose operations with known cost metadata rather than allowing arbitrary HTTP calls throughout the codebase. A discovery run should have a configured budget and record estimated/actual operation counts. Expensive search operations must be separated from cheaper refresh operations so strategies can be tuned independently.
+Viralab uses a **dataset-first query model**. A product search performed by a user queries Viralab-owned data and does not imply a YouTube request. Provider discovery and refresh are separate, asynchronous operations admitted by freshness, deduplication, entitlement and quota policy.
 
-On quota exhaustion or upstream throttling, the system should stop creating unnecessary work and preserve the run state for diagnosis. We should prefer incremental refresh from our own known dataset over repeatedly rediscovering the same universe.
+This separation is deliberate: users may perform many exploratory queries, while the platform must preserve scarce provider capacity for autonomous discovery, paid/on-demand refresh, scheduled monitoring and operational reserve. UI-query volume and provider-call volume are therefore separate metrics.
+
+The YouTube adapter exposes operations with known cost metadata rather than allowing arbitrary HTTP calls throughout the codebase. Current provider policy must model operation cost separately from bucket capacity: `search.list` costs 1 unit but belongs to a dedicated Search Queries bucket with a default 100 calls/day, while `channels.list` costs 1 unit from the general quota pool.
+
+Fresh stored data must be reused. Equivalent stale requests should converge on shared provider work rather than consume quota once per user. Pricing/plan entitlements live above the provider gateway; free users can consume the shared Viralab dataset without receiving unbounded provider quota.
+
+A discovery run should have a configured budget and record estimated/actual operation counts. On quota exhaustion or upstream throttling, the system should stop creating unnecessary work and preserve the run state for diagnosis. We should prefer incremental refresh from our own known dataset over repeatedly rediscovering the same universe.
+
+ADR-008 defines the dataset-first and shared-quota policy in detail.
 
 ## 11. Failure handling
 

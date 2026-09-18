@@ -87,7 +87,8 @@ export const handleRequest = async (request: Request, deps: DiscoveryApiDeps): P
 
     await deps.enqueue({
       version: 1,
-      type: 'youtube.discovery.requested',
+      type: 'content.discovery.requested',
+      provider: 'youtube',
       jobId,
       correlationId,
       query: normalizedQuery,

@@ -29,9 +29,12 @@ export const discoveryRequestSchema = z.object({
 export const normalizeDiscoveryQuery = (query: string): string =>
   query.trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
 
+export const contentProviderSchema = z.enum(['youtube']);
+
 export const discoveryQueueMessageSchema = z.object({
   version: z.literal(1),
-  type: z.literal('youtube.discovery.requested'),
+  type: z.literal('content.discovery.requested'),
+  provider: contentProviderSchema,
   jobId: z.uuid(),
   correlationId: z.uuid(),
   query: z.string().min(1).max(120),
@@ -40,15 +43,17 @@ export const discoveryQueueMessageSchema = z.object({
 
 export const channelIngestionQueueMessageSchema = z.object({
   version: z.literal(1),
-  type: z.literal('youtube.channel.ingestion.requested'),
+  type: z.literal('content.channel.ingestion.requested'),
+  provider: contentProviderSchema,
   jobId: z.uuid(),
   correlationId: z.uuid(),
   channelId: z.uuid(),
-  youtubeChannelId: z.string().min(1).max(128),
+  providerChannelId: z.string().min(1).max(128),
   requestedAt: z.iso.datetime(),
   source: z.enum(['discovery', 'manual', 'scheduler']).default('discovery'),
 });
 
+export type ContentProvider = z.infer<typeof contentProviderSchema>;
 export type DiscoveryRequest = z.infer<typeof discoveryRequestSchema>;
 export type DiscoveryQueueMessage = z.infer<typeof discoveryQueueMessageSchema>;
 export type ChannelIngestionQueueMessage = z.infer<typeof channelIngestionQueueMessageSchema>;

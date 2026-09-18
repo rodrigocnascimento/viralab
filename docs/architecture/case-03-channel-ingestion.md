@@ -45,17 +45,18 @@ Supabase PostgreSQL
 ```json
 {
   "version": 1,
-  "type": "youtube.channel.ingestion.requested",
+  "type": "content.channel.ingestion.requested",
+  "provider": "youtube",
   "jobId": "<uuid>",
   "correlationId": "<uuid>",
   "channelId": "<internal-channel-uuid>",
-  "youtubeChannelId": "UC...",
+  "providerChannelId": "UC...",
   "requestedAt": "2026-09-17T00:00:00.000Z",
   "source": "discovery"
 }
 ```
 
-`channelId` is Viralab identity. `youtubeChannelId` avoids a database read only to construct the provider request. Consumers reject unknown versions/types.
+`channelId` is Viralab identity. `provider` selects the platform adapter and `providerChannelId` is the external channel identity without leaking YouTube naming into orchestration. Consumers reject unknown versions/types/providers. The MVP supports only `youtube`; additional providers are additive.
 
 ## Persistence model
 
@@ -102,7 +103,11 @@ Logs carry IDs and counts, not full provider payloads, API keys or arbitrary des
 
 ## Trigger strategy
 
-After Case 02 persists discovery results, enqueue one ingestion command per unique canonical channel. If 25 videos belong to 18 channels, emit at most 18 jobs. Discovery does not call `channels.list` inline.
+After Case 02 persists discovery results, enqueue at most one ingestion command per unique canonical channel that actually requires enrichment. If 25 videos belong to 18 channels, emit no more than 18 jobs, and fewer when a channel is already fresh enough to reuse.
+
+The handoff must therefore support canonical-identity deduplication plus a freshness decision based on `last_ingested_at` (with the concrete freshness window remaining runtime policy). Multiple discoveries or users encountering the same fresh channel must not generate repeated `channels.list` work.
+
+Discovery does not call `channels.list` inline. User-facing product queries also do not invoke this flow directly; they read Viralab-owned data first, with explicit refresh/discovery requests admitted separately through quota policy as defined by ADR-008.
 
 ## Queue topology
 
@@ -125,8 +130,11 @@ apps/channel-ingestion
 packages/shared
   versioned ingestion contract
 
+packages/providers
+  provider-neutral discovery/channel contracts
+
 packages/youtube
-  channels.list adapter
+  YouTube adapter implementing provider contracts
 
 packages/database
   schema migration + canonical update
@@ -158,9 +166,11 @@ packages/database
 
 ### Case 03.4 — Discovery handoff
 - producer binding;
-- one job per unique channel;
+- one job per unique stale/un-enriched channel;
+- freshness gate using `last_ingested_at`;
+- canonical-channel deduplication;
 - correlation propagation;
-- duplicate-channel tests.
+- duplicate/fresh-channel tests.
 
 ### Case 03.5 — Runtime validation
 - create queue + DLQ;
@@ -174,4 +184,4 @@ A production discovery can discover canonical entities, enqueue unique channel e
 
 ## Architectural decisions
 
-No new ADR is required. Case 03 applies ADR-001 through ADR-007, especially ADR-003/005 for queue/processing separation, ADR-006 for snapshot boundaries and ADR-007 for log/BI separation.
+Case 03 applies ADR-001 through ADR-008, especially ADR-003/005 for queue/processing separation, ADR-006 for snapshot boundaries, ADR-007 for log/BI separation and ADR-008 for dataset-first querying, freshness and provider-quota admission.

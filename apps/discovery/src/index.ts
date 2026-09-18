@@ -1,7 +1,7 @@
 import { createDatabase, DiscoveryRepository } from '@viralab/database';
 import { discoveryQueueMessageSchema } from '@viralab/shared';
 import { YouTubeDataApiGateway } from '@viralab/youtube';
-import { processDiscovery, shouldRetryYouTubeError } from './service.js';
+import { processDiscovery, shouldRetryProviderError } from './service.js';
 
 type QueueMessage = {
   body: unknown;
@@ -30,7 +30,7 @@ export default {
   async queue(batch: QueueBatch, env: Env): Promise<void> {
     const database = createDatabase(databaseUrl(env));
     const persistence = new DiscoveryRepository(database.db);
-    const youtube = new YouTubeDataApiGateway(env.YOUTUBE_API_KEY);
+    const provider = new YouTubeDataApiGateway(env.YOUTUBE_API_KEY);
     const maxResults = Math.min(Math.max(Number(env.YOUTUBE_MAX_RESULTS ?? 25), 1), 50);
 
     try {
@@ -50,7 +50,7 @@ export default {
         }));
 
         try {
-          const result = await processDiscovery(message, { youtube, persistence, maxResults });
+          const result = await processDiscovery(message, { provider, persistence, maxResults });
           console.log(JSON.stringify({
             event: 'discovery.persisted',
             jobId: message.jobId,
@@ -59,7 +59,7 @@ export default {
           }));
           queueMessage.ack();
         } catch (error) {
-          const retry = shouldRetryYouTubeError(error);
+          const retry = shouldRetryProviderError(error);
           console.error(JSON.stringify({
             event: 'discovery.failed',
             jobId: message.jobId,
