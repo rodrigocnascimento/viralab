@@ -44,7 +44,8 @@ export class DiscoveryRepository {
   }
 
   async upsertChannel(input: {
-    youtubeId: string;
+    provider: 'youtube';
+    providerId: string;
     title: string;
     description?: string | null;
     thumbnailUrl?: string | null;
@@ -64,7 +65,7 @@ export class DiscoveryRepository {
     const [row] = await this.db
       .insert(channels)
       .values({
-        youtubeId: input.youtubeId,
+        youtubeId: input.providerId,
         title: input.title,
         description: input.description ?? null,
         thumbnailUrl: input.thumbnailUrl ?? null,
@@ -84,7 +85,8 @@ export class DiscoveryRepository {
   }
 
   async upsertVideo(input: {
-    youtubeId: string;
+    provider: 'youtube';
+    providerId: string;
     channelId: string;
     title: string;
     description?: string | null;
@@ -106,7 +108,7 @@ export class DiscoveryRepository {
     const [row] = await this.db
       .insert(videos)
       .values({
-        youtubeId: input.youtubeId,
+        youtubeId: input.providerId,
         channelId: input.channelId,
         title: input.title,
         description: input.description ?? null,
@@ -126,14 +128,16 @@ export class DiscoveryRepository {
     return row.id;
   }
 
-  async findChannelByYoutubeId(youtubeId: string) {
-    const [row] = await this.db.select().from(channels).where(eq(channels.youtubeId, youtubeId)).limit(1);
+  async findChannelByProviderId(provider: 'youtube', providerId: string) {
+    void provider;
+    const [row] = await this.db.select().from(channels).where(eq(channels.youtubeId, providerId)).limit(1);
     return row ?? null;
   }
 
   async enrichChannel(input: {
     channelId: string;
-    youtubeId: string;
+    provider: 'youtube';
+    providerId: string;
     title: string;
     description?: string | null;
     thumbnailUrl?: string | null;
@@ -166,7 +170,7 @@ export class DiscoveryRepository {
         lastIngestedAt: input.ingestedAt,
         updatedAt: input.ingestedAt,
       })
-      .where(and(eq(channels.id, input.channelId), eq(channels.youtubeId, input.youtubeId)))
+      .where(and(eq(channels.id, input.channelId), eq(channels.youtubeId, input.providerId)))
       .returning({ id: channels.id });
 
     if (!row) {
