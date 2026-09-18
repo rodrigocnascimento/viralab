@@ -1,75 +1,29 @@
+import {
+  ProviderGatewayError,
+  type ChannelProvider,
+  type DiscoveryProvider,
+  type ProviderChannelResult,
+  type ProviderDiscoveryResult,
+  type ProviderErrorKind,
+} from '@viralab/providers';
+
 export const YOUTUBE_QUOTA_COST = {
   searchList: 1,
   channelsList: 1,
 } as const;
 
-export type YouTubeDiscoveryItem = {
-  video: {
-    youtubeId: string;
-    title: string;
-    description: string | null;
-    thumbnailUrl: string | null;
-    publishedAt: Date | null;
-  };
-  channel: {
-    youtubeId: string;
-    title: string;
-  };
-};
+export type YouTubeErrorKind = ProviderErrorKind;
 
-export type YouTubeDiscoveryResult = {
-  items: YouTubeDiscoveryItem[];
-  quotaCost: number;
-  nextPageToken: string | null;
-};
-
-export type YouTubeChannelProfile = {
-  youtubeId: string;
-  title: string;
-  description: string | null;
-  thumbnailUrl: string | null;
-  publishedAt: Date | null;
-  customUrl: string | null;
-  country: string | null;
-  defaultLanguage: string | null;
-  uploadsPlaylistId: string | null;
-  subscriberCount: bigint | null;
-  viewCount: bigint | null;
-  videoCount: bigint | null;
-  hiddenSubscriberCount: boolean;
-};
-
-export type YouTubeChannelResult = {
-  channel: YouTubeChannelProfile;
-  quotaCost: number;
-};
-
-export type YouTubeErrorKind =
-  | 'rate_limited'
-  | 'quota_exhausted'
-  | 'provider_unavailable'
-  | 'invalid_request'
-  | 'unauthorized'
-  | 'unexpected_provider_response';
-
-export class YouTubeGatewayError extends Error {
+export class YouTubeGatewayError extends ProviderGatewayError {
   constructor(
-    public readonly kind: YouTubeErrorKind,
+    kind: YouTubeErrorKind,
     message: string,
-    public readonly retryable: boolean,
-    public readonly status?: number,
+    retryable: boolean,
+    status?: number,
   ) {
-    super(message);
+    super('youtube', kind, message, retryable, status);
     this.name = 'YouTubeGatewayError';
   }
-}
-
-export interface YouTubeDiscoveryGateway {
-  searchVideos(input: { query: string; maxResults: number }): Promise<YouTubeDiscoveryResult>;
-}
-
-export interface YouTubeChannelGateway {
-  getChannel(input: { youtubeChannelId: string }): Promise<YouTubeChannelResult>;
 }
 
 type YouTubeErrorPayload = {
@@ -154,13 +108,15 @@ const parseOptionalBigInt = (value: string | undefined, field: string): bigint |
   return BigInt(value);
 };
 
-export class YouTubeDataApiGateway implements YouTubeDiscoveryGateway, YouTubeChannelGateway {
+export class YouTubeDataApiGateway implements DiscoveryProvider, ChannelProvider {
+  readonly provider = 'youtube' as const;
+
   constructor(
     private readonly apiKey: string,
     private readonly fetcher: typeof fetch = fetch,
   ) {}
 
-  async searchVideos(input: { query: string; maxResults: number }): Promise<YouTubeDiscoveryResult> {
+  async searchVideos(input: { query: string; maxResults: number }): Promise<ProviderDiscoveryResult> {
     const url = new URL('https://www.googleapis.com/youtube/v3/search');
     url.searchParams.set('part', 'snippet');
     url.searchParams.set('type', 'video');
@@ -181,7 +137,7 @@ export class YouTubeDataApiGateway implements YouTubeDiscoveryGateway, YouTubeCh
       throw new YouTubeGatewayError('unexpected_provider_response', 'YouTube response did not include items', false, response.status);
     }
 
-    const items: YouTubeDiscoveryItem[] = [];
+    const items: ProviderDiscoveryResult['items'] = [];
     for (const item of payload.items) {
       const videoId = item.id?.videoId;
       const channelId = item.snippet?.channelId;
@@ -191,14 +147,14 @@ export class YouTubeDataApiGateway implements YouTubeDiscoveryGateway, YouTubeCh
 
       items.push({
         video: {
-          youtubeId: videoId,
+          providerId: videoId,
           title,
           description: item.snippet?.description ?? null,
           thumbnailUrl: bestThumbnail(item.snippet?.thumbnails),
           publishedAt: item.snippet?.publishedAt ? new Date(item.snippet.publishedAt) : null,
         },
         channel: {
-          youtubeId: channelId,
+          providerId: channelId,
           title: channelTitle,
         },
       });
@@ -211,10 +167,10 @@ export class YouTubeDataApiGateway implements YouTubeDiscoveryGateway, YouTubeCh
     };
   }
 
-  async getChannel(input: { youtubeChannelId: string }): Promise<YouTubeChannelResult> {
+  async getChannel(input: { providerChannelId: string }): Promise<ProviderChannelResult> {
     const url = new URL('https://www.googleapis.com/youtube/v3/channels');
     url.searchParams.set('part', 'snippet,statistics,contentDetails');
-    url.searchParams.set('id', input.youtubeChannelId);
+    url.searchParams.set('id', input.providerChannelId);
     url.searchParams.set('key', this.apiKey);
 
     const response = await this.request(url);
@@ -233,14 +189,14 @@ export class YouTubeDataApiGateway implements YouTubeDiscoveryGateway, YouTubeCh
     if (payload.items.length === 0) {
       throw new YouTubeGatewayError(
         'invalid_request',
-        `YouTube channel ${input.youtubeChannelId} was not found`,
+        `YouTube channel ${input.providerChannelId} was not found`,
         false,
         response.status,
       );
     }
 
     const item = payload.items[0];
-    if (!item?.id || item.id !== input.youtubeChannelId) {
+    if (!item?.id || item.id !== input.providerChannelId) {
       throw new YouTubeGatewayError(
         'unexpected_provider_response',
         'YouTube returned a channel identity different from the requested channel',
@@ -261,7 +217,7 @@ export class YouTubeDataApiGateway implements YouTubeDiscoveryGateway, YouTubeCh
 
     return {
       channel: {
-        youtubeId: item.id,
+        providerId: item.id,
         title,
         description: item.snippet?.description ?? null,
         thumbnailUrl: bestThumbnail(item.snippet?.thumbnails),
