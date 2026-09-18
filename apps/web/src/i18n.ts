@@ -2,151 +2,65 @@ import { createI18n } from 'vue-i18n';
 
 export const messages = {
   en: {
-    nav: {
-      opportunities: 'Signals',
-      how: 'How it works',
-      why: 'Why Viralab',
-      explore: 'See opportunity signals'
-    },
+    nav: { opportunities: 'Signals', how: 'How it works', why: 'Why Viralab', access: 'Get early access' },
     hero: {
       eyebrow: 'YOUTUBE OPPORTUNITY INTELLIGENCE',
-      title: 'Spot breakout opportunities',
-      emphasis: 'before the market catches up.',
-      lead: "Viralab maps YouTube channels and videos, compares performance against each channel's own baseline, and surfaces unusual growth before it becomes obvious.",
-      how: 'How Viralab finds signals ↓',
-      microcopy: 'Built for creators, operators and researchers who care about timing — not just trending lists.',
-      launchNote: 'Viralab is in active development. Opportunity scoring and historical tracking are rolling out progressively.',
-      sample: 'SAMPLE SIGNAL',
-      signal: 'BREAKOUT VELOCITY',
-      velocity: 'vs. recent baseline'
+      title: 'See which YouTube channels and topics are breaking their own baseline',
+      emphasis: '— before the trending page notices.',
+      lead: 'Viralab maps channels and videos, compares performance with each channel’s own baseline, and surfaces unusual growth while the opportunity is still early.',
+      primary: 'Get early access', secondary: 'See a live sample signal',
+      microcopy: 'Built for channel operators, researchers, and serious creators who care about timing — not trending lists.',
+      sample: 'SAMPLE SIGNAL', signal: 'BREAKOUT VELOCITY', velocity: 'vs. channel baseline'
+    },
+    sample: {
+      eyebrow: 'ONE SIGNAL, MADE CONCRETE', title: 'This is the kind of movement Viralab is built to surface.',
+      context: 'Sample · Automotive · Brazil', note: 'The useful question is not “is this channel big?” It is “is this channel moving unusually fast relative to itself?”',
+      observed: 'Observed signal', subscribers: 'Subscribers', growth: 'Sample growth', velocity: 'Relative velocity'
     },
     problem: {
-      eyebrow: 'TIMING IS THE EDGE',
-      title: 'By the time a trend looks obvious, the easiest part of the opportunity may already be gone.',
-      early: 'EARLY SIGNAL',
-      breakout: 'BREAKOUT',
-      viral: 'MAINSTREAM',
-      note: 'Viralab is designed to surface the movement between early signal and obvious trend.'
+      eyebrow: 'TIMING IS THE EDGE', title: 'By the time a trend looks obvious, the easiest part of the opportunity may already be gone.',
+      early: 'EARLY SIGNAL', breakout: 'BREAKOUT', viral: 'MAINSTREAM',
+      note: 'Viralab is built to surface the movement between early signal and obvious trend.'
     },
     opportunities: {
-      eyebrow: 'WHAT VIRALAB LOOKS FOR',
-      title: 'Three signal types that can reveal opportunity early.',
-      breakoutTitle: 'Breakout Channels',
-      breakoutText: 'Channels whose recent momentum materially exceeds their own normal growth pattern.',
-      subscribers: 'subscribers',
-      outlierTitle: 'Video Outliers',
-      outlierText: "Videos performing far above the channel's typical range — a useful clue that a topic, format or angle is resonating.",
-      baseline: 'vs. baseline',
-      outlier: 'OUTLIER',
-      nicheTitle: 'Niche Momentum',
-      nicheText: 'Similar signals appearing across multiple channels, suggesting movement beyond a single lucky upload.',
-      channelsRising: 'channels moving',
-      emerging: 'EMERGING'
+      eyebrow: 'WHAT VIRALAB LOOKS FOR', title: 'Three signals. Three decisions.',
+      breakoutTitle: 'Breakout Channels', breakoutText: 'Channels moving materially outside their own normal performance band.',
+      breakoutAction: 'Worth watching, partnering with, or treating as a leading indicator.',
+      outlierTitle: 'Video Outliers', outlierText: 'Videos performing far above the channel’s typical range.',
+      outlierAction: 'Find the topic, format, or angle that is resonating. Steal the pattern, not the thumbnail.',
+      nicheTitle: 'Niche Momentum', nicheText: 'Similar unusual movement appearing across multiple channels.',
+      nicheAction: 'That is evidence of a market forming — not one lucky upload.',
+      sample: 'SAMPLE', subscribers: 'subscribers', baseline: 'vs. baseline', outlier: 'OUTLIER', channelsRising: 'channels moving', emerging: 'EMERGING'
     },
     intelligence: {
-      eyebrow: 'FROM NOISE TO SIGNAL',
-      title: 'More useful than a generic trending page.',
-      text: "Raw views tell you what is already popular. Viralab focuses on relative performance: what changed, how unusual it is for that channel, and whether similar movement is appearing elsewhere.",
-      historical: 'Observed Performance',
-      engine: 'Opportunity Signals',
-      breakout: 'SAMPLE BREAKOUT',
-      subscribers: 'SUBSCRIBERS',
-      growth: '30D GROWTH',
-      velocity: 'VELOCITY'
+      eyebrow: 'RELATIVE PERFORMANCE > RAW VIEWS', title: 'More useful than a generic trending page.',
+      text: 'Raw views tell you what is already popular. Viralab asks what changed, how unusual that change is for that channel, and whether similar movement is showing up elsewhere.',
+      historical: 'Observed performance', engine: 'Opportunity signals'
+    },
+    score: {
+      eyebrow: 'HOW THE SCORE THINKS', title: 'A signal needs context, not just a big number.',
+      baseline: 'Baseline', baselineText: 'Compare a channel or video with its own normal performance.',
+      velocity: 'Velocity', velocityText: 'Measure how far observed performance has moved away from that baseline.',
+      confidence: 'Confidence', confidenceText: 'Treat stronger evidence as stronger signal, and keep weak evidence visibly uncertain.',
+      note: 'The scoring model evolves as Viralab accumulates observation history. Method changes are documented rather than hidden.'
     },
     moat: {
-      eyebrow: 'THE COMPOUNDING DATA ADVANTAGE',
-      title: 'A snapshot shows what happened.',
-      emphasis: 'History helps explain what is changing.',
-      text: 'As Viralab accumulates observations over time, channel baselines become richer and unusual acceleration becomes easier to distinguish from noise. That dataset is the foundation for better opportunity detection.'
+      eyebrow: 'THE COMPOUNDING DATA ADVANTAGE', title: 'A snapshot shows what happened.', emphasis: 'History helps explain what is changing.',
+      text: 'Each observation makes the baseline more useful. Over time, Viralab can separate sustained acceleration from noise with more context — turning a stream of public metrics into an accumulated opportunity dataset.'
     },
-    cta: {
-      eyebrow: 'FIND MOVEMENT BEFORE CONSENSUS',
-      title: 'Start with the signals, not the hype.',
-      text: 'See the types of channel, video and niche movement Viralab is being built to detect — then follow the product as those signals become searchable and actionable.',
-      button: 'See the signal model'
+    access: {
+      eyebrow: 'EARLY ACCESS', title: 'Start with the signals, not the hype.',
+      text: 'Join the early-access list. We will tell you when the signal feed becomes searchable and actionable.',
+      email: 'Work email', role: 'I am a…', niche: 'YouTube niche (optional)', submit: 'Join the waitlist',
+      success: 'You’re on the list. We’ll send the first signals, not a newsletter.',
+      privacy: 'No newsletter cadence. Early-access and product-signal updates only.'
     },
-    footer: { tagline: 'YouTube Opportunity Intelligence' }
-  },
-  'pt-BR': {
-    nav: {
-      opportunities: 'Sinais',
-      how: 'Como funciona',
-      why: 'Por que Viralab',
-      explore: 'Ver sinais de oportunidade'
-    },
-    hero: {
-      eyebrow: 'INTELIGÊNCIA DE OPORTUNIDADES NO YOUTUBE',
-      title: 'Encontre oportunidades em breakout',
-      emphasis: 'antes que o mercado perceba.',
-      lead: 'O Viralab mapeia canais e vídeos do YouTube, compara o desempenho com a própria linha de base de cada canal e destaca movimentos de crescimento fora do padrão antes que fiquem óbvios.',
-      how: 'Como o Viralab encontra sinais ↓',
-      microcopy: 'Feito para creators, operadores e pesquisadores que valorizam timing — não apenas listas de tendências.',
-      launchNote: 'O Viralab está em desenvolvimento ativo. Scoring de oportunidades e histórico estão sendo liberados progressivamente.',
-      sample: 'SINAL DE EXEMPLO',
-      signal: 'VELOCIDADE DE BREAKOUT',
-      velocity: 'vs. linha de base recente'
-    },
-    problem: {
-      eyebrow: 'TIMING É A VANTAGEM',
-      title: 'Quando uma tendência já parece óbvia, a parte mais fácil da oportunidade pode ter passado.',
-      early: 'SINAL INICIAL',
-      breakout: 'BREAKOUT',
-      viral: 'MAINSTREAM',
-      note: 'O Viralab foi desenhado para encontrar o movimento entre o sinal inicial e a tendência óbvia.'
-    },
-    opportunities: {
-      eyebrow: 'O QUE O VIRALAB PROCURA',
-      title: 'Três tipos de sinal que podem revelar oportunidade mais cedo.',
-      breakoutTitle: 'Canais em Breakout',
-      breakoutText: 'Canais cujo ritmo recente de crescimento está muito acima do seu próprio padrão normal.',
-      subscribers: 'inscritos',
-      outlierTitle: 'Vídeos Outliers',
-      outlierText: 'Vídeos performando muito acima da faixa típica do canal — um indício de que tema, formato ou abordagem está encontrando demanda.',
-      baseline: 'vs. linha de base',
-      outlier: 'OUTLIER',
-      nicheTitle: 'Momento de Nicho',
-      nicheText: 'Sinais semelhantes surgindo em vários canais, indicando movimento além de um único vídeo que deu sorte.',
-      channelsRising: 'canais em movimento',
-      emerging: 'EMERGENTE'
-    },
-    intelligence: {
-      eyebrow: 'DO RUÍDO AO SINAL',
-      title: 'Mais útil do que uma página genérica de tendências.',
-      text: 'Views brutas mostram o que já é popular. O Viralab olha para desempenho relativo: o que mudou, quão incomum aquilo é para o canal e se movimentos parecidos estão surgindo em outros lugares.',
-      historical: 'Desempenho Observado',
-      engine: 'Sinais de Oportunidade',
-      breakout: 'BREAKOUT DE EXEMPLO',
-      subscribers: 'INSCRITOS',
-      growth: 'CRESCIMENTO 30D',
-      velocity: 'VELOCIDADE'
-    },
-    moat: {
-      eyebrow: 'A VANTAGEM DOS DADOS ACUMULADOS',
-      title: 'Um snapshot mostra o que aconteceu.',
-      emphasis: 'O histórico ajuda a explicar o que está mudando.',
-      text: 'À medida que o Viralab acumula observações, as linhas de base dos canais ficam mais ricas e acelerações incomuns ficam mais fáceis de separar do ruído. Esse dataset é a base para detectar oportunidades melhores.'
-    },
-    cta: {
-      eyebrow: 'ENCONTRE MOVIMENTO ANTES DO CONSENSO',
-      title: 'Comece pelos sinais, não pelo hype.',
-      text: 'Veja os tipos de movimento em canais, vídeos e nichos que o Viralab está sendo construído para detectar — e acompanhe a evolução desses sinais até virarem pesquisa e ação.',
-      button: 'Ver o modelo de sinais'
-    },
-    footer: { tagline: 'Inteligência de Oportunidades no YouTube' }
+    footer: {
+      tagline: 'YouTube Opportunity Intelligence', note: 'Viralab is YouTube opportunity intelligence — not a thumbnail maker, viral score app, or social agency.',
+      development: 'Viralab is in active development. Signal models and historical tracking are evolving.',
+      privacy: 'Privacy', terms: 'Terms'
+    }
   }
 } as const;
 
-export type SupportedLocale = keyof typeof messages;
-
-export function resolveBrowserLocale(languages?: readonly string[]): SupportedLocale {
-  const preferredLanguages = languages ?? (typeof navigator !== 'undefined' ? navigator.languages : []);
-  return preferredLanguages.some((language) => language.toLowerCase() === 'pt-br') ? 'pt-BR' : 'en';
-}
-
-export const i18n = createI18n({
-  legacy: false,
-  locale: resolveBrowserLocale(),
-  fallbackLocale: 'en',
-  messages
-});
+export const i18n = createI18n({ legacy: false, locale: 'en', fallbackLocale: 'en', messages });
