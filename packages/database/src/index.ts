@@ -164,6 +164,24 @@ export class DiscoveryRepository {
     return Boolean(row);
   }
 
+  async releaseChannelIngestionClaim(input: {
+    channelId: string;
+    provider: 'youtube';
+    providerId: string;
+    requestedAt: Date;
+  }): Promise<void> {
+    void input.provider;
+
+    await this.db
+      .update(channels)
+      .set({ lastIngestionRequestedAt: null })
+      .where(and(
+        eq(channels.id, input.channelId),
+        eq(channels.youtubeId, input.providerId),
+        eq(channels.lastIngestionRequestedAt, input.requestedAt),
+      ));
+  }
+
   async enrichChannel(input: {
     channelId: string;
     provider: 'youtube';
