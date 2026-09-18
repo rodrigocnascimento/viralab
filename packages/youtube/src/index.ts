@@ -160,6 +160,9 @@ export class YouTubeDataApiGateway implements DiscoveryProvider, ChannelProvider
           description: item.snippet?.description ?? null,
           thumbnailUrl: bestThumbnail(item.snippet?.thumbnails),
           publishedAt: item.snippet?.publishedAt ? new Date(item.snippet.publishedAt) : null,
+          viewCount: null,
+          likeCount: null,
+          commentCount: null,
         },
         channel: {
           providerId: channelId,
