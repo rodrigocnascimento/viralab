@@ -1,24 +1,16 @@
 name: Repair lockfile
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'apps/web/package.json'
-      - 'pnpm-lock.yaml'
-      - '.github/workflows/repair-lockfile.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   repair:
-    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
       - uses: pnpm/action-setup@v4
         with:
           version: 10.15.1
@@ -39,4 +31,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pnpm-lock.yaml
           git commit -m "chore(auth): regenerate lockfile for Supabase SDK"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          git push origin HEAD:${GITHUB_REF_NAME}
