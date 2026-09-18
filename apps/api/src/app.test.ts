@@ -148,16 +148,59 @@ describe('discovery API', () => {
     expect(listOpportunities).not.toHaveBeenCalled();
   });
 
-  it('bypasses anonymous Explorer rate limit for authenticated users', async () => {
-    const checkAnonymousExplorerAccess = vi.fn(async () => ({ kind: 'rate_limited' as const, retryAfterSeconds: 60 }));
+  it('unlocks a five-search authenticated bonus after the anonymous allowance is exhausted', async () => {
+    const checkAuthenticatedExplorerBonus = vi.fn(async () => ({
+      kind: 'allowed' as const,
+      quota: { limit: 5, remaining: 4, resetsAt: '2026-09-19T00:00:00.000Z' },
+    }));
     const response = await handleRequest(new Request('https://api.example.com/api/v1/opportunities', { headers: { authorization: 'Bearer valid' } }), {
       pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
       resolveAuth: async () => ({ userId: 'user-1', email: 'user@example.com', provider: 'google' }),
-      checkAnonymousExplorerAccess,
+      checkAnonymousExplorerAccess: async () => ({
+        kind: 'quota_exhausted' as const,
+        quota: { limit: 10, remaining: 0, resetsAt: '2026-09-19T00:00:00.000Z' },
+      }),
+      checkAuthenticatedExplorerBonus,
       listOpportunities: async () => [],
     });
     expect(response.status).toBe(200);
-    expect(checkAnonymousExplorerAccess).not.toHaveBeenCalled();
+    const body = await response.json() as { meta: { freeQuota: { kind: string; limit: number; remaining: number } } };
+    expect(body.meta.freeQuota).toMatchObject({ kind: 'login_bonus', limit: 5, remaining: 4 });
+    expect(checkAuthenticatedExplorerBonus).toHaveBeenCalledWith(expect.objectContaining({
+      auth: expect.objectContaining({ userId: 'user-1' }),
+    }));
+  });
+
+  it('asks anonymous users to sign in after the daily allowance is exhausted', async () => {
+    const response = await handleRequest(new Request('https://api.example.com/api/v1/opportunities'), {
+      pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
+      resolveAuth: async () => null,
+      checkAnonymousExplorerAccess: async () => ({
+        kind: 'quota_exhausted' as const,
+        quota: { limit: 10, remaining: 0, resetsAt: '2026-09-19T00:00:00.000Z' },
+      }),
+      listOpportunities: async () => [],
+    });
+    expect(response.status).toBe(429);
+    await expect(response.json()).resolves.toMatchObject({ error: 'anonymous_quota_exhausted', upgrade: 'sign_in' });
+  });
+
+  it('stops authenticated free traffic after the five-search bonus is exhausted', async () => {
+    const response = await handleRequest(new Request('https://api.example.com/api/v1/opportunities', { headers: { authorization: 'Bearer valid' } }), {
+      pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
+      resolveAuth: async () => ({ userId: 'user-1', email: 'user@example.com', provider: 'google' }),
+      checkAnonymousExplorerAccess: async () => ({
+        kind: 'quota_exhausted' as const,
+        quota: { limit: 10, remaining: 0, resetsAt: '2026-09-19T00:00:00.000Z' },
+      }),
+      checkAuthenticatedExplorerBonus: async () => ({
+        kind: 'quota_exhausted' as const,
+        quota: { limit: 5, remaining: 0, resetsAt: '2026-09-19T00:00:00.000Z' },
+      }),
+      listOpportunities: async () => [],
+    });
+    expect(response.status).toBe(429);
+    await expect(response.json()).resolves.toMatchObject({ error: 'free_quota_exhausted', upgrade: 'plans' });
   });
 
   it('returns the authenticated identity and application profile', async () => {
