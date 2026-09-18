@@ -86,6 +86,19 @@ export default {
           if (!quota.allowed) return { kind: 'quota_exhausted' as const, quota };
           return { kind: 'allowed' as const, quota };
         },
+        checkAuthenticatedExplorerBonus: async ({ auth, now }) => {
+          const userKey = await sha256Key('authenticated-explorer-bonus', auth.userId);
+          const quotaId = env.ANONYMOUS_QUOTA.idFromName(`user:${userKey}`);
+          const response = await env.ANONYMOUS_QUOTA.get(quotaId).fetch(new Request('https://quota.internal/consume', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ browserKey: userKey, browserLimit: 5, ipLimit: 5, now: now.toISOString() }),
+          }));
+          if (!response.ok) throw new Error('authenticated_bonus_quota_unavailable');
+          const quota = await response.json() as QuotaDecision;
+          if (!quota.allowed) return { kind: 'quota_exhausted' as const, quota };
+          return { kind: 'allowed' as const, quota };
+        },
         listOpportunities: async (input) => (await opportunities.list(input)).map((row) => ({
           id: row.id, type: row.type, provider: row.provider, score: row.score, confidence: row.confidence, multiplier: row.multiplier,
           baselineViewCount: row.baselineViewCount.toString(), observedViewCount: row.observedViewCount.toString(), detectedAt: row.detectedAt.toISOString(),
