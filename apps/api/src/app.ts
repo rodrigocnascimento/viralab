@@ -28,6 +28,10 @@ export interface DiscoveryApiDeps {
     | { kind: 'quota_exhausted'; quota: { limit: number; remaining: number; resetsAt: string } }
     | { kind: 'anonymous_id_required' }
   >;
+  checkAuthenticatedExplorerBonus?(input: { request: Request; auth: AuthContext; now: Date }): Promise<
+    | { kind: 'allowed'; quota: { limit: number; remaining: number; resetsAt: string } }
+    | { kind: 'quota_exhausted'; quota: { limit: number; remaining: number; resetsAt: string } }
+  >;
   listOpportunities?(input: { minScore: number; limit: number; detectedAfter?: Date }): Promise<OpportunityListItem[]>;
   allowedOrigins?: string[];
   now?: () => Date;
@@ -91,18 +95,26 @@ export const handleRequest = async (request: Request, deps: DiscoveryApiDeps): P
     if (deps.resolveAuth) {
       try { auth = await deps.resolveAuth(request); } catch { return json({ error: 'invalid_access_token' }, 401, cors); }
     }
-    let anonymousQuota: { limit: number; remaining: number; resetsAt: string } | undefined;
-    if (!auth && deps.checkAnonymousExplorerAccess) {
-      const access = await deps.checkAnonymousExplorerAccess(request, deps.now?.() ?? new Date());
+    const now = deps.now?.() ?? new Date();
+    let freeQuota: { kind: 'anonymous' | 'login_bonus'; limit: number; remaining: number; resetsAt: string } | undefined;
+    if (deps.checkAnonymousExplorerAccess) {
+      const access = await deps.checkAnonymousExplorerAccess(request, now);
       if (access.kind === 'anonymous_id_required') return json({ error: 'anonymous_id_required' }, 400, cors);
       if (access.kind === 'rate_limited') {
         const headers = new Headers(cors); headers.set('retry-after', String(access.retryAfterSeconds));
         return json({ error: 'rate_limited' }, 429, headers);
       }
       if (access.kind === 'quota_exhausted') {
-        return json({ error: 'anonymous_quota_exhausted', upgrade: 'sign_in', quota: access.quota }, 429, cors);
+        if (!auth) return json({ error: 'anonymous_quota_exhausted', upgrade: 'sign_in', quota: access.quota }, 429, cors);
+        if (!deps.checkAuthenticatedExplorerBonus) return json({ error: 'authenticated_quota_unavailable' }, 503, cors);
+        const bonus = await deps.checkAuthenticatedExplorerBonus({ request, auth, now });
+        if (bonus.kind === 'quota_exhausted') {
+          return json({ error: 'free_quota_exhausted', upgrade: 'plans', quota: bonus.quota }, 429, cors);
+        }
+        freeQuota = { kind: 'login_bonus', ...bonus.quota };
+      } else {
+        freeQuota = { kind: 'anonymous', ...access.quota };
       }
-      anonymousQuota = access.quota;
     }
     const minScoreRaw = Number(url.searchParams.get('minScore') ?? 40);
     const limitRaw = Number(url.searchParams.get('limit') ?? 30);
@@ -116,7 +128,7 @@ export const handleRequest = async (request: Request, deps: DiscoveryApiDeps): P
       if (Number.isNaN(detectedAfter.getTime())) return json({ error: 'invalid_query' }, 400, cors);
     }
     const items = await deps.listOpportunities({ minScore: minScoreRaw, limit: limitRaw, detectedAfter });
-    return json({ items, meta: { count: items.length, minScore: minScoreRaw, limit: limitRaw, ...(anonymousQuota ? { anonymousQuota } : {}) } }, 200, cors);
+    return json({ items, meta: { count: items.length, minScore: minScoreRaw, limit: limitRaw, ...(freeQuota ? { freeQuota } : {}) } }, 200, cors);
   }
 
   if (request.method === 'POST' && url.pathname === '/api/v1/waitlist') {
