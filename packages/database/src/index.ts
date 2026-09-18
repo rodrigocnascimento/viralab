@@ -138,7 +138,34 @@ export class DiscoveryRepository {
       .returning({ id: videos.id });
 
     if (!row) throw new Error('Video upsert did not return a row');
+    await this.recomputeVideoOpportunity(row.id, input.channelId, input.provider, input.discoveredAt);
     return row.id;
+  }
+
+  private async recomputeVideoOpportunity(videoId: string, channelId: string, provider: 'youtube', detectedAt: Date): Promise<void> {
+    const [video] = await this.db.select().from(videos).where(and(eq(videos.id, videoId), eq(videos.channelId, channelId))).limit(1);
+    const [channel] = await this.db.select().from(channels).where(eq(channels.id, channelId)).limit(1);
+    if (!video || video.viewCount === null || !channel?.viewCount || !channel.videoCount) return;
+
+    const signal = scoreVideoOutlier({ videoViews: video.viewCount, channelViews: channel.viewCount, channelVideos: channel.videoCount });
+    if (!signal) {
+      await this.db.delete(opportunities).where(and(eq(opportunities.videoId, video.id), eq(opportunities.type, 'video_outlier')));
+      return;
+    }
+    const evidence = {
+      model: 'channel_lifetime_average_v1',
+      channelViewCount: channel.viewCount.toString(),
+      channelVideoCount: channel.videoCount.toString(),
+    };
+    await this.db.insert(opportunities).values({
+      type: 'video_outlier', provider, videoId: video.id, channelId, score: signal.score, confidence: signal.confidence,
+      multiplier: signal.multiplier, baselineViewCount: signal.baselineViews, observedViewCount: video.viewCount,
+      evidence, detectedAt, updatedAt: detectedAt,
+    }).onConflictDoUpdate({
+      target: [opportunities.videoId, opportunities.type],
+      set: { score: signal.score, confidence: signal.confidence, multiplier: signal.multiplier, baselineViewCount: signal.baselineViews,
+        observedViewCount: video.viewCount, evidence, detectedAt, updatedAt: detectedAt },
+    });
   }
 
   async findChannelByProviderId(provider: 'youtube', providerId: string) {
@@ -278,54 +305,9 @@ export class DiscoveryRepository {
       throw new Error('Channel enrichment identity mismatch or channel not found');
     }
 
-    if (input.viewCount && input.videoCount) {
-      const channelVideos = await this.db.select().from(videos).where(eq(videos.channelId, input.channelId));
-      for (const video of channelVideos) {
-        if (video.viewCount === null) continue;
-        const signal = scoreVideoOutlier({
-          videoViews: video.viewCount,
-          channelViews: input.viewCount,
-          channelVideos: input.videoCount,
-        });
-        if (!signal) {
-          await this.db.delete(opportunities).where(and(eq(opportunities.videoId, video.id), eq(opportunities.type, 'video_outlier')));
-          continue;
-        }
-        await this.db.insert(opportunities).values({
-          type: 'video_outlier',
-          provider: input.provider,
-          videoId: video.id,
-          channelId: input.channelId,
-          score: signal.score,
-          confidence: signal.confidence,
-          multiplier: signal.multiplier,
-          baselineViewCount: signal.baselineViews,
-          observedViewCount: video.viewCount,
-          evidence: {
-            model: 'channel_lifetime_average_v1',
-            channelViewCount: input.viewCount.toString(),
-            channelVideoCount: input.videoCount.toString(),
-          },
-          detectedAt: input.ingestedAt,
-          updatedAt: input.ingestedAt,
-        }).onConflictDoUpdate({
-          target: [opportunities.videoId, opportunities.type],
-          set: {
-            score: signal.score,
-            confidence: signal.confidence,
-            multiplier: signal.multiplier,
-            baselineViewCount: signal.baselineViews,
-            observedViewCount: video.viewCount,
-            evidence: {
-              model: 'channel_lifetime_average_v1',
-              channelViewCount: input.viewCount.toString(),
-              channelVideoCount: input.videoCount.toString(),
-            },
-            detectedAt: input.ingestedAt,
-            updatedAt: input.ingestedAt,
-          },
-        });
-      }
+    const channelVideos = await this.db.select({ id: videos.id }).from(videos).where(eq(videos.channelId, input.channelId));
+    for (const video of channelVideos) {
+      await this.recomputeVideoOpportunity(video.id, input.channelId, input.provider, input.ingestedAt);
     }
   }
 }
