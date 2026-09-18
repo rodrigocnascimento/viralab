@@ -92,6 +92,14 @@ export const waitlistEntries = pgTable('waitlist_entries', {
   ...timestamps,
 }, (table) => [uniqueIndex('waitlist_entries_email_uidx').on(table.email)]);
 
+export const profiles = pgTable('profiles', {
+  id: uuid('id').primaryKey(),
+  email: text('email'),
+  displayName: text('display_name'),
+  avatarUrl: text('avatar_url'),
+  ...timestamps,
+});
+
 export const analyticsEvents = pgTable('analytics_events', {
   id: uuid('id').primaryKey().defaultRandom(),
   eventName: text('event_name').notNull(),
@@ -112,5 +120,6 @@ export type Video = typeof videos.$inferSelect;
 export type NewVideo = typeof videos.$inferInsert;
 export type Opportunity = typeof opportunities.$inferSelect;
 export type WaitlistEntry = typeof waitlistEntries.$inferSelect;
+export type Profile = typeof profiles.$inferSelect;
 export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert;
