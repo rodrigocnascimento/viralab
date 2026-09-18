@@ -184,7 +184,7 @@ The Wrangler producer binding itself is activated in Case 03.5 after the Cloudfl
 - provision `viralab-channel-ingestion` and `viralab-channel-ingestion-dlq`;
 - bind discovery as producer through `CHANNEL_INGESTION_QUEUE`;
 - deploy the channel-ingestion Worker before enabling the discovery producer;
-- sync `YOUTUBE_API_KEY` from the GitHub Actions repository secret into the new Worker;
+- keep `YOUTUBE_API_KEY` as a Cloudflare Worker secret managed outside the deploy workflow;
 - deploy through GitHub Actions;
 - run a production discovery smoke test;
 - verify migration 0002, handoff counters, channel enrichment, correlation IDs and queue/DLQ health.
@@ -195,11 +195,10 @@ Deployment ordering is intentional:
 database migration
   -> API
   -> channel-ingestion consumer
-  -> channel-ingestion YOUTUBE_API_KEY secret
   -> discovery producer
 ```
 
-This ensures the consumer exists and has credentials before discovery can publish channel-ingestion work.
+This ensures the consumer exists before discovery can publish channel-ingestion work. The `YOUTUBE_API_KEY` secret is provisioned directly in Cloudflare for the channel-ingestion Worker and is intentionally not exported through GitHub Actions.
 
 ## Acceptance criteria
 
