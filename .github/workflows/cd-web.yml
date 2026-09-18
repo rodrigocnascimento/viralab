@@ -57,6 +57,7 @@ jobs:
         env:
           VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
           VITE_SENTRY_RELEASE: ${{ github.sha }}
+          SENTRY_RELEASE: ${{ github.sha }}
           VITE_SENTRY_TRACES_SAMPLE_RATE: "0.1"
           VITE_SENTRY_REPLAY_ON_ERROR_SAMPLE_RATE: "1"
           SENTRY_ORG: viralab
