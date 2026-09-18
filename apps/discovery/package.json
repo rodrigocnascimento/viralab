@@ -13,7 +13,8 @@
   "dependencies": {
     "@viralab/database": "workspace:*",
     "@viralab/shared": "workspace:*",
-    "@viralab/youtube": "workspace:*"
+    "@viralab/youtube": "workspace:*",
+    "@viralab/providers": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^3.2.4",
