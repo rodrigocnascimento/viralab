@@ -22,6 +22,13 @@
       "when": 1789693200000,
       "tag": "0002_case03_discovery_handoff",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789707600000,
+      "tag": "0003_case04_opportunities",
+      "breakpoints": true
     }
   ]
 }
