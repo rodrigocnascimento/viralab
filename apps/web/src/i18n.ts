@@ -33,7 +33,15 @@ export const messages = {
     sample: {
       eyebrow: 'ONE SIGNAL, MADE CONCRETE', title: 'This is the kind of movement Viralab is built to surface.',
       context: 'Sample · Automotive · Brazil', note: 'The useful question is not “is this channel big?” It is “is this channel moving unusually fast relative to itself?”',
-      observed: 'Observed signal', subscribers: 'Subscribers', growth: 'Sample growth', velocity: 'Relative velocity'
+      observed: 'Observed signal', subscribers: 'Subscribers', growth: 'Sample growth', velocity: 'Relative velocity',
+      disclaimer: 'Illustrative sample · not a live recommendation'
+    },
+    carousel: {
+      discoverNiches: 'DISCOVER NICHES', smallChannels: 'Small channels, shared acceleration',
+      discoverTrends: 'DISCOVER TRENDS', topicsMoving: 'Topics moving before Trending',
+      findOutliers: 'FIND OUTLIERS', videosEscaping: 'Videos escaping the normal range',
+      trackBreakouts: 'TRACK BREAKOUTS', channelsLeaving: 'Channels leaving their baseline',
+      moveEarly: 'MOVE EARLY', signalBeforeConsensus: 'Signal before consensus'
     },
     problem: {
       eyebrow: 'TIMING IS THE EDGE', title: 'By the time a trend looks obvious, the easiest part of the opportunity may already be gone.',
@@ -69,7 +77,10 @@ export const messages = {
     access: {
       eyebrow: 'EARLY ACCESS', title: 'Start with the signals, not the hype.',
       text: 'Join the early-access list. We will tell you when the signal feed becomes searchable and actionable.',
-      email: 'Work email', role: 'I am a…', niche: 'YouTube niche (optional)', submit: 'Join the waitlist',
+      email: 'Work email', role: 'I am a…', niche: 'YouTube niche (optional)', submit: 'Join the waitlist', joining: 'Joining…',
+      emailPlaceholder: 'you@company.com', nichePlaceholder: 'Automotive, finance…',
+      roles: { operator: 'Channel operator / MCN', researcher: 'Researcher / analyst', creator: 'Serious creator' },
+      errors: { rateLimited: 'Too many attempts. Please try again later.', requestFailed: 'We could not save your request. Please try again.' },
       success: 'You’re on the list. We’ll send the first signals, not a newsletter.',
       privacy: 'No newsletter cadence. Early-access and product-signal updates only.'
     },
@@ -136,7 +147,15 @@ export const messages = {
     sample: {
       eyebrow: 'UM SINAL, DE FORMA CONCRETA', title: 'É esse tipo de movimento que o Viralab foi criado para revelar.',
       context: 'Exemplo · Automotivo · Brasil', note: 'A pergunta útil não é “esse canal é grande?”. É “esse canal está se movendo de forma incomum em relação a ele mesmo?”.',
-      observed: 'Sinal observado', subscribers: 'Inscritos', growth: 'Crescimento do exemplo', velocity: 'Velocidade relativa'
+      observed: 'Sinal observado', subscribers: 'Inscritos', growth: 'Crescimento do exemplo', velocity: 'Velocidade relativa',
+      disclaimer: 'Exemplo ilustrativo · não é uma recomendação em tempo real'
+    },
+    carousel: {
+      discoverNiches: 'DESCOBRIR NICHOS', smallChannels: 'Canais pequenos, aceleração compartilhada',
+      discoverTrends: 'DESCOBRIR TENDÊNCIAS', topicsMoving: 'Temas se movendo antes do Trending',
+      findOutliers: 'ENCONTRAR OUTLIERS', videosEscaping: 'Vídeos escapando da faixa normal',
+      trackBreakouts: 'ACOMPANHAR BREAKOUTS', channelsLeaving: 'Canais saindo da própria linha de base',
+      moveEarly: 'AGIR CEDO', signalBeforeConsensus: 'Sinal antes do consenso'
     },
     problem: {
       eyebrow: 'TIMING É A VANTAGEM', title: 'Quando uma tendência já parece óbvia, a parte mais fácil da oportunidade pode ter passado.',
@@ -172,7 +191,10 @@ export const messages = {
     access: {
       eyebrow: 'ACESSO ANTECIPADO', title: 'Comece pelos sinais, não pelo hype.',
       text: 'Entre na lista de acesso antecipado. Avisaremos quando o feed de sinais estiver pesquisável e acionável.',
-      email: 'E-mail profissional', role: 'Eu sou…', niche: 'Nicho no YouTube (opcional)', submit: 'Entrar na lista',
+      email: 'E-mail profissional', role: 'Eu sou…', niche: 'Nicho no YouTube (opcional)', submit: 'Entrar na lista', joining: 'Entrando…',
+      emailPlaceholder: 'voce@empresa.com', nichePlaceholder: 'Automotivo, finanças…',
+      roles: { operator: 'Operador de canal / MCN', researcher: 'Pesquisador / analista', creator: 'Criador profissional' },
+      errors: { rateLimited: 'Muitas tentativas. Tente novamente mais tarde.', requestFailed: 'Não foi possível salvar sua solicitação. Tente novamente.' },
       success: 'Você está na lista. Vamos enviar os primeiros sinais, não uma newsletter.',
       privacy: 'Sem cadência de newsletter. Apenas acesso antecipado e atualizações de produto.'
     },
