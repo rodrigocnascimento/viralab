@@ -1,22 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { messages, resolveBrowserLocale } from './i18n';
+import { messages } from './i18n';
 
-describe('Viralab landing page i18n', () => {
-  it('communicates the product positioning in English', () => {
+describe('Viralab landing positioning', () => {
+  it('names YouTube, baseline and a truthful early-access CTA in the hero', () => {
     expect(messages.en.hero.eyebrow).toBe('YOUTUBE OPPORTUNITY INTELLIGENCE');
-    expect(messages.en.hero.title).toContain('Spot breakout opportunities');
-    expect(messages.en.hero.emphasis).toContain('before the market catches up');
+    expect(messages.en.hero.title).toContain('YouTube');
+    expect(messages.en.hero.title).toContain('baseline');
+    expect(messages.en.hero.primary).toBe('Get early access');
+    expect(messages.en.hero.secondary).toBe('See a live sample signal');
   });
-
-  it('ships the initial opportunity signals in both locales', () => {
-    expect(messages.en.opportunities.breakoutTitle).toBe('Breakout Channels');
-    expect(messages.en.opportunities.outlierTitle).toBe('Video Outliers');
-    expect(messages['pt-BR'].opportunities.nicheTitle).toBe('Momento de Nicho');
+  it('turns signal taxonomy into operator actions', () => {
+    expect(messages.en.opportunities.breakoutAction).toContain('partnering');
+    expect(messages.en.opportunities.outlierAction).toContain('pattern');
+    expect(messages.en.opportunities.nicheAction).toContain('market');
   });
-
-  it('resolves Brazilian Portuguese and falls back to English', () => {
-    expect(resolveBrowserLocale(['pt-BR', 'en-US'])).toBe('pt-BR');
-    expect(resolveBrowserLocale(['en-US'])).toBe('en');
-    expect(resolveBrowserLocale(['es-ES'])).toBe('en');
+  it('keeps development status out of the hero', () => {
+    expect(messages.en.hero).not.toHaveProperty('launchNote');
+    expect(messages.en.footer.development).toContain('active development');
   });
 });
