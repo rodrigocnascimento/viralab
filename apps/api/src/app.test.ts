@@ -77,7 +77,9 @@ describe('discovery API', () => {
     expect(response.status).toBe(204);
     expect(response.headers.get('access-control-allow-origin')).toBe(allowedOrigins[0]);
     expect(response.headers.get('access-control-allow-methods')).toContain('POST');
-    expect(response.headers.get('access-control-allow-headers')).toBe('content-type');
+    expect(response.headers.get('access-control-allow-headers')).toBe(
+      'authorization, content-type, x-viralab-anonymous-id',
+    );
   });
 
   it('rejects preflight from an untrusted origin', async () => {
@@ -131,6 +133,42 @@ describe('discovery API', () => {
     expect(body.items[0]?.score).toBe(82);
     expect(listOpportunities).toHaveBeenCalledWith({ minScore: 60, limit: 20, detectedAfter: undefined });
     expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it('rate limits anonymous Explorer before reading the dataset', async () => {
+    const listOpportunities = vi.fn(async () => []);
+    const response = await handleRequest(new Request('https://api.example.com/api/v1/opportunities'), {
+      pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
+      resolveAuth: async () => null,
+      checkAnonymousExplorerAccess: async () => ({ kind: 'rate_limited' as const, retryAfterSeconds: 60 }),
+      listOpportunities,
+    });
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('60');
+    expect(listOpportunities).not.toHaveBeenCalled();
+  });
+
+  it('bypasses anonymous Explorer rate limit for authenticated users', async () => {
+    const checkAnonymousExplorerAccess = vi.fn(async () => ({ kind: 'rate_limited' as const, retryAfterSeconds: 60 }));
+    const response = await handleRequest(new Request('https://api.example.com/api/v1/opportunities', { headers: { authorization: 'Bearer valid' } }), {
+      pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
+      resolveAuth: async () => ({ userId: 'user-1', email: 'user@example.com', provider: 'google' }),
+      checkAnonymousExplorerAccess,
+      listOpportunities: async () => [],
+    });
+    expect(response.status).toBe(200);
+    expect(checkAnonymousExplorerAccess).not.toHaveBeenCalled();
+  });
+
+  it('returns the authenticated identity and application profile', async () => {
+    const ensureProfile = vi.fn(async () => ({ id: 'user-1', email: 'user@example.com', displayName: null, avatarUrl: null }));
+    const response = await handleRequest(new Request('https://api.example.com/api/v1/me', { headers: { authorization: 'Bearer valid' } }), {
+      pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
+      resolveAuth: async () => ({ userId: 'user-1', email: 'user@example.com', provider: 'google' }),
+      ensureProfile,
+    });
+    expect(response.status).toBe(200);
+    expect(ensureProfile).toHaveBeenCalledWith(expect.objectContaining({ id: 'user-1', email: 'user@example.com' }));
   });
 
   it('rejects invalid opportunity filters', async () => {

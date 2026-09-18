@@ -1,11 +1,16 @@
-import { createDatabase, DiscoveryRepository, OpportunityRepository, WaitlistRepository } from '@viralab/database';
-import { consumeRateLimit, sha256Key, type RateLimitBinding } from '@viralab/rate-limit';
+import { createDatabase, DiscoveryRepository, OpportunityRepository, ProfileRepository, WaitlistRepository } from '@viralab/database';
+import { verifyOptionalSupabaseAuth } from '@viralab/auth';
+import { consumeRateLimit, sha256Key, validAnonymousId, type QuotaDecision, type RateLimitBinding } from '@viralab/rate-limit';
 import type { DiscoveryQueueMessage } from '@viralab/shared';
 import { handleRequest } from './app.js';
+export { AnonymousQuota } from './anonymous-quota.js';
 
 type QueueProducer = {
   send(message: DiscoveryQueueMessage): Promise<void>;
 };
+
+type DurableObjectStubLike = { fetch(request: Request): Promise<Response> };
+type DurableObjectNamespaceLike = { idFromName(name: string): unknown; get(id: unknown): DurableObjectStubLike };
 
 type Env = {
   DATABASE_URL?: string;
@@ -14,6 +19,10 @@ type Env = {
   CORS_ALLOWED_ORIGINS?: string;
   WAITLIST_IP_RATE_LIMITER: RateLimitBinding;
   WAITLIST_EMAIL_RATE_LIMITER: RateLimitBinding;
+  ANONYMOUS_EXPLORER_RATE_LIMITER: RateLimitBinding;
+  ANONYMOUS_QUOTA: DurableObjectNamespaceLike;
+  SUPABASE_URL: string;
+  SUPABASE_PUBLISHABLE_KEY: string;
 };
 
 const databaseUrl = (env: Env): string => {
@@ -34,6 +43,7 @@ export default {
     const repository = new DiscoveryRepository(database.db);
     const opportunities = new OpportunityRepository(database.db);
     const waitlist = new WaitlistRepository(database.db);
+    const profiles = new ProfileRepository(database.db);
 
     try {
       return await handleRequest(request, {
@@ -49,6 +59,32 @@ export default {
             consumeRateLimit(env.WAITLIST_EMAIL_RATE_LIMITER, emailKey, 60),
           ]);
           return !ipDecision.allowed ? ipDecision : emailDecision;
+        },
+        resolveAuth: (request) => verifyOptionalSupabaseAuth(request, {
+          supabaseUrl: env.SUPABASE_URL,
+          publishableKey: env.SUPABASE_PUBLISHABLE_KEY,
+        }),
+        ensureProfile: (input) => profiles.ensure(input),
+        checkAnonymousExplorerAccess: async (request, now) => {
+          const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+          const ipKey = await sha256Key('anonymous-explorer-ip', ip);
+          const burst = await consumeRateLimit(env.ANONYMOUS_EXPLORER_RATE_LIMITER, ipKey, 60);
+          if (!burst.allowed) return { kind: 'rate_limited' as const, retryAfterSeconds: burst.retryAfterSeconds };
+
+          const anonymousId = request.headers.get('x-viralab-anonymous-id');
+          if (!validAnonymousId(anonymousId)) return { kind: 'anonymous_id_required' as const };
+
+          const browserKey = await sha256Key('anonymous-browser', anonymousId);
+          const quotaId = env.ANONYMOUS_QUOTA.idFromName(`ip:${ipKey}`);
+          const response = await env.ANONYMOUS_QUOTA.get(quotaId).fetch(new Request('https://quota.internal/consume', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ browserKey, browserLimit: 10, ipLimit: 50, now: now.toISOString() }),
+          }));
+          if (!response.ok) throw new Error('anonymous_quota_unavailable');
+          const quota = await response.json() as QuotaDecision;
+          if (!quota.allowed) return { kind: 'quota_exhausted' as const, quota };
+          return { kind: 'allowed' as const, quota };
         },
         listOpportunities: async (input) => (await opportunities.list(input)).map((row) => ({
           id: row.id, type: row.type, provider: row.provider, score: row.score, confidence: row.confidence, multiplier: row.multiplier,

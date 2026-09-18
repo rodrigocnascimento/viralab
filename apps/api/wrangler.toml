@@ -17,6 +17,8 @@ localConnectionString = "postgresql://viralab:viralab@localhost:5432/viralab"
 [vars]
 # Comma-separated exact origins allowed by the API.
 CORS_ALLOWED_ORIGINS = "http://localhost:5173,https://viralab.space"
+SUPABASE_URL = "https://msdcsrxyxhdszmnqksbp.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_5EYKMC3b5WdnKAgZz5g4sw_XQxbOKRf"
 
 [observability.logs]
 enabled = true
@@ -38,3 +40,16 @@ simple = { limit = 30, period = 60 }
 name = "WAITLIST_EMAIL_RATE_LIMITER"
 namespace_id = "1002"
 simple = { limit = 3, period = 60 }
+
+[[ratelimits]]
+name = "ANONYMOUS_EXPLORER_RATE_LIMITER"
+namespace_id = "1003"
+simple = { limit = 30, period = 60 }
+
+[[durable_objects.bindings]]
+name = "ANONYMOUS_QUOTA"
+class_name = "AnonymousQuota"
+
+[[migrations]]
+tag = "v1-anonymous-quota"
+new_sqlite_classes = ["AnonymousQuota"]
