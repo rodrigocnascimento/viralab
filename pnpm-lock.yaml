@@ -108,6 +108,9 @@ importers:
       vue-tsc:
         specifier: ^3.0.6
         version: 3.3.11(typescript@5.9.3)
+      wrangler:
+        specifier: ^4.35.0
+        version: 4.133.0(@types/node@24.13.5)
 
   packages/database:
     dependencies:
