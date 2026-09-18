@@ -29,9 +29,6 @@ importers:
       '@viralab/database':
         specifier: workspace:*
         version: link:../../packages/database
-      '@viralab/providers':
-        specifier: workspace:*
-        version: link:../../packages/providers
       '@viralab/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -48,6 +45,9 @@ importers:
       '@viralab/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@viralab/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       '@viralab/shared':
         specifier: workspace:*
         version: link:../../packages/shared
