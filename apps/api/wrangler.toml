@@ -44,4 +44,12 @@ simple = { limit = 3, period = 60 }
 [[ratelimits]]
 name = "ANONYMOUS_EXPLORER_RATE_LIMITER"
 namespace_id = "1003"
-simple = { limit = 10, period = 60 }
+simple = { limit = 30, period = 60 }
+
+[[durable_objects.bindings]]
+name = "ANONYMOUS_QUOTA"
+class_name = "AnonymousQuota"
+
+[[migrations]]
+tag = "v1-anonymous-quota"
+new_sqlite_classes = ["AnonymousQuota"]
