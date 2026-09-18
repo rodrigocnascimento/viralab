@@ -26,7 +26,7 @@ async function submitWaitlist() {
 <template>
 <div class="site-shell">
 <header class="nav container">
-  <a class="brand" href="#top" aria-label="Viralab home"><span class="brand-mark">V</span><span>vira<strong>lab</strong></span></a>
+  <a class="brand brand-logo" href="#top" aria-label="Viralab home"><img src="/viralab-logo.svg" alt="Viralab"></a>
   <nav :class="{ open: menuOpen }" aria-label="Main navigation"><a href="#signals" @click="menuOpen=false">{{ t('nav.opportunities') }}</a><a href="#how" @click="menuOpen=false">{{ t('nav.how') }}</a><a href="#about" @click="menuOpen=false">{{ t('nav.why') }}</a></nav>
   <a class="button button-small" href="#access">{{ t('nav.access') }}</a>
   <button class="menu-toggle" :aria-expanded="menuOpen" aria-label="Toggle navigation" @click="menuOpen=!menuOpen"><span></span><span></span></button>
@@ -69,6 +69,6 @@ async function submitWaitlist() {
 <section id="access" class="access band"><div class="container access-grid"><div><p class="eyebrow">{{t('access.eyebrow')}}</p><h2>{{t('access.title')}}</h2><p>{{t('access.text')}}</p></div><form class="waitlist" @submit.prevent="submitWaitlist"><template v-if="!submitted"><label>{{t('access.email')}}<input v-model="email" required type="email" autocomplete="email" placeholder="you@company.com"></label><div class="form-row"><label>{{t('access.role')}}<select v-model="role"><option value="operator">Channel operator / MCN</option><option value="researcher">Researcher / analyst</option><option value="creator">Serious creator</option></select></label><label>{{t('access.niche')}}<input v-model="niche" type="text" placeholder="Automotive, finance…"></label></div><button class="button button-light" type="submit" :disabled="submitting">{{ submitting ? 'Joining…' : t('access.submit') }} →</button><p v-if="submitError" class="form-error" role="alert">{{submitError}}</p><small>{{t('access.privacy')}}</small></template><p v-else class="success">{{t('access.success')}}</p></form></div></section>
 </main>
 
-<footer><div class="container footer-grid"><div><a class="brand" href="#top"><span class="brand-mark">V</span><span>vira<strong>lab</strong></span></a><p>{{t('footer.tagline')}}</p></div><p>{{t('footer.note')}}</p><div class="footer-links"><a href="mailto:hello@viralab.space">hello@viralab.space</a><a href="/privacy.html">{{t('footer.privacy')}}</a><a href="/terms.html">{{t('footer.terms')}}</a></div></div><div class="container footer-bottom"><span>© 2026 Viralab</span><span>{{t('footer.development')}}</span></div></footer>
+<footer><div class="container footer-grid"><div><a class="brand brand-logo" href="#top" aria-label="Viralab home"><img src="/viralab-logo.svg" alt="Viralab"></a><p>{{t('footer.tagline')}}</p></div><p>{{t('footer.note')}}</p><div class="footer-links"><a href="mailto:hello@viralab.space">hello@viralab.space</a><a href="/privacy.html">{{t('footer.privacy')}}</a><a href="/terms.html">{{t('footer.terms')}}</a></div></div><div class="container footer-bottom"><span>© 2026 Viralab</span><span>{{t('footer.development')}}</span></div></footer>
 </div>
 </template>
