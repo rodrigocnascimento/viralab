@@ -95,3 +95,8 @@ jobs:
           for app in "${apps[@]}"; do
             pnpm --filter "./apps/$app" build
           done
+
+
+      - name: Smoke test web runtime
+        if: steps.scope.outputs.global == 'true' || contains(steps.scope.outputs.apps, 'web')
+        run: bash apps/web/scripts/smoke-runtime.sh
