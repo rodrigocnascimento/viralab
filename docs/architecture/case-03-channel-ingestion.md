@@ -24,7 +24,8 @@ Case 03 includes channel-ingestion queueing, `channels.list` enrichment, current
 ```text
 Canonical channel discovered
         |
-        +--> enqueue youtube.channel.ingestion.requested
+        +--> freshness/claim gate
+        +--> enqueue content.channel.ingestion.requested
         v
 Cloudflare Queue
         |
@@ -70,9 +71,10 @@ Extend `channels` with nullable current-state enrichment fields:
 - `view_count` bigint;
 - `video_count` bigint;
 - `hidden_subscriber_count` boolean;
-- `last_ingested_at` timestamptz.
+- `last_ingested_at` timestamptz;
+- `last_ingestion_requested_at` timestamptz.
 
-`youtube_id` remains unique. `first_discovered_at` is never overwritten. `last_discovered_at` remains discovery activity, not ingestion freshness. `updated_at` advances on enrichment.
+`youtube_id` remains unique. `first_discovered_at` is never overwritten. `last_discovered_at` remains discovery activity, not ingestion freshness. `last_ingestion_requested_at` is a short-lived claim used to deduplicate concurrent handoff attempts and is cleared after successful enrichment. `updated_at` advances on discovery/enrichment policy writes.
 
 Latest statistics live on `channels` as the current projection. ADR-006 remains authoritative: historical observations will be appended to snapshot tables later while `channels` remains current state.
 
@@ -105,7 +107,7 @@ Logs carry IDs and counts, not full provider payloads, API keys or arbitrary des
 
 After Case 02 persists discovery results, enqueue at most one ingestion command per unique canonical channel that actually requires enrichment. If 25 videos belong to 18 channels, emit no more than 18 jobs, and fewer when a channel is already fresh enough to reuse.
 
-The handoff must therefore support canonical-identity deduplication plus a freshness decision based on `last_ingested_at` (with the concrete freshness window remaining runtime policy). Multiple discoveries or users encountering the same fresh channel must not generate repeated `channels.list` work.
+The handoff uses an atomic database claim over canonical channel identity. A channel is claimable only when its `last_ingested_at` is outside the configured freshness window and no non-expired ingestion claim exists. The MVP defaults are 6 hours of channel freshness and a 15-minute claim lease, both runtime-configurable. Multiple discoveries encountering the same fresh or already-claimed channel therefore do not generate repeated `channels.list` work. If queue publication fails, the claim is released so retry can enqueue again.
 
 Discovery does not call `channels.list` inline. User-facing product queries also do not invoke this flow directly; they read Viralab-owned data first, with explicit refresh/discovery requests admitted separately through quota policy as defined by ADR-008.
 
@@ -168,12 +170,15 @@ packages/database
 Runtime queue creation and production deployment remain Case 03.5 concerns so merging the application code does not require the new Cloudflare resources to exist yet.
 
 ### Case 03.4 — Discovery handoff
-- producer binding;
+- producer integration behind an optional queue binding;
 - one job per unique stale/un-enriched channel;
-- freshness gate using `last_ingested_at`;
-- canonical-channel deduplication;
+- atomic freshness/claim gate using `last_ingested_at` + `last_ingestion_requested_at`;
+- configurable freshness and claim-lease windows;
+- release claim when queue publication fails;
 - correlation propagation;
-- duplicate/fresh-channel tests.
+- duplicate/fresh/concurrent-claim tests.
+
+The Wrangler producer binding itself is activated in Case 03.5 after the Cloudflare queue exists, so merging 03.4 cannot break the current production discovery deploy.
 
 ### Case 03.5 — Runtime validation
 - create queue + DLQ;
