@@ -21,6 +21,13 @@ const load = async () => {
   loading.value = true; error.value = '';
   try {
     const response = await fetch(`${apiBase}/api/v1/opportunities?minScore=${minScore.value}&limit=50`);
+    if (response.status === 429) {
+      const body = await response.json().catch(() => null) as { upgrade?: string } | null;
+      if (body?.upgrade === 'sign_in') {
+        window.location.replace('/login?reason=anonymous_limit');
+        return;
+      }
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const body = await response.json() as { items: Opportunity[] };
     items.value = body.items;
