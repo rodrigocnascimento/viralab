@@ -77,7 +77,9 @@ describe('discovery API', () => {
     expect(response.status).toBe(204);
     expect(response.headers.get('access-control-allow-origin')).toBe(allowedOrigins[0]);
     expect(response.headers.get('access-control-allow-methods')).toContain('POST');
-    expect(response.headers.get('access-control-allow-headers')).toBe('content-type');
+    expect(response.headers.get('access-control-allow-headers')).toBe(
+      'authorization, content-type, x-viralab-anonymous-id',
+    );
   });
 
   it('rejects preflight from an untrusted origin', async () => {
