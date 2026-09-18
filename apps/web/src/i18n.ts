@@ -41,7 +41,8 @@ export const messages = {
       discoverTrends: 'DISCOVER TRENDS', topicsMoving: 'Topics moving before Trending',
       findOutliers: 'FIND OUTLIERS', videosEscaping: 'Videos escaping the normal range',
       trackBreakouts: 'TRACK BREAKOUTS', channelsLeaving: 'Channels leaving their baseline',
-      moveEarly: 'MOVE EARLY', signalBeforeConsensus: 'Signal before consensus'
+      moveEarly: 'MOVE EARLY', signalBeforeConsensus: 'Signal before consensus',
+      risingMetric: '{count} rising', ariaLabel: 'Viralab opportunity intelligence examples'
     },
     problem: {
       eyebrow: 'TIMING IS THE EDGE', title: 'By the time a trend looks obvious, the easiest part of the opportunity may already be gone.',
@@ -155,7 +156,8 @@ export const messages = {
       discoverTrends: 'DESCOBRIR TENDÊNCIAS', topicsMoving: 'Temas se movendo antes do Trending',
       findOutliers: 'ENCONTRAR OUTLIERS', videosEscaping: 'Vídeos escapando da faixa normal',
       trackBreakouts: 'ACOMPANHAR BREAKOUTS', channelsLeaving: 'Canais saindo da própria linha de base',
-      moveEarly: 'AGIR CEDO', signalBeforeConsensus: 'Sinal antes do consenso'
+      moveEarly: 'AGIR CEDO', signalBeforeConsensus: 'Sinal antes do consenso',
+      risingMetric: '{count} em alta', ariaLabel: 'Exemplos de inteligência de oportunidades do Viralab'
     },
     problem: {
       eyebrow: 'TIMING É A VANTAGEM', title: 'Quando uma tendência já parece óbvia, a parte mais fácil da oportunidade pode ter passado.',
