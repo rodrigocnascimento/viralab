@@ -14,23 +14,35 @@ const items = ref<Opportunity[]>([]);
 const loading = ref(true);
 const error = ref('');
 const minScore = ref(40);
+const anonymousQuota = ref<{ limit: number; remaining: number; resetsAt: string } | null>(null);
+const anonymousId = (() => {
+  const key = 'viralab.anonymous-id';
+  const existing = localStorage.getItem(key);
+  if (existing) return existing;
+  const created = crypto.randomUUID();
+  localStorage.setItem(key, created);
+  return created;
+})();
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'https://api.viralab.space';
 
 const format = (value: string | null) => value === null ? '—' : new Intl.NumberFormat(pt.value ? 'pt-BR' : 'en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(value));
 const load = async () => {
   loading.value = true; error.value = '';
   try {
-    const response = await fetch(`${apiBase}/api/v1/opportunities?minScore=${minScore.value}&limit=50`);
+    const response = await fetch(`${apiBase}/api/v1/opportunities?minScore=${minScore.value}&limit=50`, {
+      headers: { 'x-viralab-anonymous-id': anonymousId },
+    });
     if (response.status === 429) {
       const body = await response.json().catch(() => null) as { upgrade?: string } | null;
       if (body?.upgrade === 'sign_in') {
-        window.location.replace('/login?reason=anonymous_limit');
+        window.location.replace('/login?reason=anonymous_quota');
         return;
       }
     }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const body = await response.json() as { items: Opportunity[] };
+    const body = await response.json() as { items: Opportunity[]; meta?: { anonymousQuota?: { limit: number; remaining: number; resetsAt: string } } };
     items.value = body.items;
+    anonymousQuota.value = body.meta?.anonymousQuota ?? null;
   } catch {
     error.value = pt.value ? 'Não foi possível carregar os sinais agora.' : 'Unable to load signals right now.';
   } finally { loading.value = false; }
@@ -42,7 +54,7 @@ onMounted(load);
   <div class="explorer-shell">
     <header class="explorer-nav container">
       <a class="brand" href="/"><span class="brand-mark">V</span><span>vira<strong>lab</strong></span></a>
-      <span class="dataset-badge">{{ pt ? 'DATASET VIRALAB · YOUTUBE' : 'VIRALAB DATASET · YOUTUBE' }}</span>
+      <span class="dataset-badge">{{ anonymousQuota ? `${anonymousQuota.remaining}/${anonymousQuota.limit} ${pt ? 'CONSULTAS GRÁTIS HOJE' : 'FREE QUERIES LEFT TODAY'}` : (pt ? 'DATASET VIRALAB · YOUTUBE' : 'VIRALAB DATASET · YOUTUBE') }}</span>
     </header>
     <main class="container explorer-main">
       <div class="explorer-heading">
