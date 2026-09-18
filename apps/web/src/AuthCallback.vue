@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { supabase } from './supabase';
 
+const { t } = useI18n();
 const error = ref('');
 
 onMounted(async () => {
@@ -10,13 +12,13 @@ onMounted(async () => {
   const next = params.get('next') || '/explore';
 
   if (!code) {
-    error.value = 'Missing OAuth authorization code.';
+    error.value = t('auth.callback.missingCode');
     return;
   }
 
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
   if (exchangeError) {
-    error.value = exchangeError.message;
+    error.value = t('auth.errors.signInFailed');
     return;
   }
 
@@ -32,8 +34,8 @@ onMounted(async () => {
     </header>
     <main class="container login-main">
       <section class="login-card">
-        <p class="eyebrow">VIRALAB AUTH</p>
-        <h1>{{ error ? 'Login failed.' : 'Finishing sign in…' }}</h1>
+        <p class="eyebrow">{{ t('auth.callback.eyebrow') }}</p>
+        <h1>{{ error ? t('auth.callback.failed') : t('auth.callback.finishing') }}</h1>
         <p v-if="error">{{ error }}</p>
       </section>
     </main>

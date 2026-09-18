@@ -43,6 +43,13 @@
       "when": 1789758000000,
       "tag": "0005_auth_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789765200000,
+      "tag": "0006_signup_bonus",
+      "breakpoints": true
     }
   ]
 }

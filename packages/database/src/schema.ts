@@ -97,6 +97,7 @@ export const profiles = pgTable('profiles', {
   email: text('email'),
   displayName: text('display_name'),
   avatarUrl: text('avatar_url'),
+  signupBonusRemaining: integer('signup_bonus_remaining').notNull().default(5),
   ...timestamps,
 });
 

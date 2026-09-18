@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, isNull, lt, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { analyticsEvents, channels, opportunities, profiles, videos, waitlistEntries } from './schema.js';
@@ -363,6 +363,25 @@ export class ProfileRepository {
     }).returning();
     if (!row) throw new Error('Profile upsert did not return a row');
     return row;
+  }
+
+  async consumeSignupBonus(input: { id: string; email?: string | null; now: Date }): Promise<{ limit: number; remaining: number } | null> {
+    await this.db.insert(profiles).values({
+      id: input.id, email: input.email ?? null, updatedAt: input.now,
+    }).onConflictDoUpdate({
+      target: profiles.id,
+      set: { email: input.email ?? null, updatedAt: input.now },
+    });
+
+    const [row] = await this.db.update(profiles)
+      .set({
+        signupBonusRemaining: sql`${profiles.signupBonusRemaining} - 1`,
+        updatedAt: input.now,
+      })
+      .where(and(eq(profiles.id, input.id), gt(profiles.signupBonusRemaining, 0)))
+      .returning({ remaining: profiles.signupBonusRemaining });
+
+    return row ? { limit: 5, remaining: row.remaining } : null;
   }
 }
 

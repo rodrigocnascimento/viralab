@@ -86,6 +86,15 @@ export default {
           if (!quota.allowed) return { kind: 'quota_exhausted' as const, quota };
           return { kind: 'allowed' as const, quota };
         },
+        checkSignupExplorerBonus: async ({ auth, now }) => {
+          const quota = await profiles.consumeSignupBonus({
+            id: auth.userId,
+            email: auth.email,
+            now,
+          });
+          if (!quota) return { kind: 'quota_exhausted' as const, quota: { limit: 5, remaining: 0 } };
+          return { kind: 'allowed' as const, quota };
+        },
         listOpportunities: async (input) => (await opportunities.list(input)).map((row) => ({
           id: row.id, type: row.type, provider: row.provider, score: row.score, confidence: row.confidence, multiplier: row.multiplier,
           baselineViewCount: row.baselineViewCount.toString(), observedViewCount: row.observedViewCount.toString(), detectedAt: row.detectedAt.toISOString(),
