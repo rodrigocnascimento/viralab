@@ -19,15 +19,16 @@ Three controls are intentionally separate:
 | --- | --- | --- |
 | Security burst rate limit | 30/min/IP | flood/abuse protection |
 | Browser daily quota | 10/day | acquisition/product allowance |
+| Login bonus | +5/day/account after anonymous exhaustion | conversion incentive |
 | IP daily ceiling | 50/day | casual incognito/private-mode circumvention |
 
 The browser identity is a random UUID persisted in localStorage and sent as `X-Viralab-Anonymous-ID`. It is not a login credential. Raw IP is not persisted.
 
 Daily quota state uses a SQLite-backed Durable Object because quota increments need strong coordination. Workers KV was considered and rejected for authoritative enforcement because its reads are eventually consistent and concurrent read-modify-write increments are not atomic.
 
-When the daily browser quota is exhausted, Explorer redirects to the login screen. The screen offers Google sign-in and a “View paid plans” CTA; plans themselves are deferred.
+When the daily browser quota is exhausted, Explorer redirects to `/login?reason=anonymous_quota`. Quota-exhaustion copy is conditional; a normal `/login` does not claim that the user exhausted anything.
 
-Authenticated Explorer traffic bypasses anonymous product quota. Account and paid-plan entitlements will be a later policy layer rather than an extension of the IP rate limiter.
+After sign-in, the same Explorer flow first uses any remaining anonymous allowance for that browser and then unlocks a 5-search daily bonus keyed to the authenticated account. Authentication does not mean unlimited free traffic. Paid-plan entitlements will be a later policy layer rather than an extension of the IP rate limiter.
 
 ## Manual provider configuration
 
