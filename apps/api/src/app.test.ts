@@ -148,10 +148,10 @@ describe('discovery API', () => {
     expect(listOpportunities).not.toHaveBeenCalled();
   });
 
-  it('unlocks a five-search authenticated bonus after the anonymous allowance is exhausted', async () => {
-    const checkAuthenticatedExplorerBonus = vi.fn(async () => ({
+  it('unlocks the one-time five-search signup bonus after the anonymous allowance is exhausted', async () => {
+    const checkSignupExplorerBonus = vi.fn(async () => ({
       kind: 'allowed' as const,
-      quota: { limit: 5, remaining: 4, resetsAt: '2026-09-19T00:00:00.000Z' },
+      quota: { limit: 5, remaining: 4 },
     }));
     const response = await handleRequest(new Request('https://api.example.com/api/v1/opportunities', { headers: { authorization: 'Bearer valid' } }), {
       pingDatabase: async () => undefined, recordSearchPerformed: async () => undefined, enqueue: async () => undefined,
@@ -160,13 +160,13 @@ describe('discovery API', () => {
         kind: 'quota_exhausted' as const,
         quota: { limit: 10, remaining: 0, resetsAt: '2026-09-19T00:00:00.000Z' },
       }),
-      checkAuthenticatedExplorerBonus,
+      checkSignupExplorerBonus,
       listOpportunities: async () => [],
     });
     expect(response.status).toBe(200);
     const body = await response.json() as { meta: { freeQuota: { kind: string; limit: number; remaining: number } } };
-    expect(body.meta.freeQuota).toMatchObject({ kind: 'login_bonus', limit: 5, remaining: 4 });
-    expect(checkAuthenticatedExplorerBonus).toHaveBeenCalledWith(expect.objectContaining({
+    expect(body.meta.freeQuota).toMatchObject({ kind: 'signup_bonus', limit: 5, remaining: 4 });
+    expect(checkSignupExplorerBonus).toHaveBeenCalledWith(expect.objectContaining({
       auth: expect.objectContaining({ userId: 'user-1' }),
     }));
   });
@@ -193,9 +193,9 @@ describe('discovery API', () => {
         kind: 'quota_exhausted' as const,
         quota: { limit: 10, remaining: 0, resetsAt: '2026-09-19T00:00:00.000Z' },
       }),
-      checkAuthenticatedExplorerBonus: async () => ({
+      checkSignupExplorerBonus: async () => ({
         kind: 'quota_exhausted' as const,
-        quota: { limit: 5, remaining: 0, resetsAt: '2026-09-19T00:00:00.000Z' },
+        quota: { limit: 5, remaining: 0 },
       }),
       listOpportunities: async () => [],
     });
