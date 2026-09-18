@@ -7,6 +7,9 @@ export type ProviderDiscoveryItem = {
     description: string | null;
     thumbnailUrl: string | null;
     publishedAt: Date | null;
+    viewCount: bigint | null;
+    likeCount: bigint | null;
+    commentCount: bigint | null;
   };
   channel: {
     providerId: string;
