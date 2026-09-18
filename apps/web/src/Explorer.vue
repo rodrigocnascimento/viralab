@@ -15,7 +15,7 @@ const items = ref<Opportunity[]>([]);
 const loading = ref(true);
 const error = ref('');
 const minScore = ref(40);
-const freeQuota = ref<{ kind: 'anonymous' | 'login_bonus'; limit: number; remaining: number; resetsAt: string } | null>(null);
+const freeQuota = ref<{ kind: 'anonymous' | 'signup_bonus'; limit: number; remaining: number; resetsAt: string } | null>(null);
 const anonymousId = (() => {
   const key = 'viralab.anonymous-id';
   const existing = localStorage.getItem(key);
@@ -41,12 +41,12 @@ const load = async () => {
         return;
       }
       if (body?.error === 'free_quota_exhausted') {
-        error.value = pt.value ? 'Seu bônus gratuito de hoje acabou. Novas consultas estarão disponíveis amanhã.' : 'Your free bonus is finished for today. More searches will be available tomorrow.';
+        error.value = pt.value ? 'Seu bônus de cadastro terminou. As consultas anônimas voltam no próximo ciclo diário.' : 'Your signup bonus is finished. Anonymous searches return on the next daily cycle.';
         return;
       }
     }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const body = await response.json() as { items: Opportunity[]; meta?: { freeQuota?: { kind: 'anonymous' | 'login_bonus'; limit: number; remaining: number; resetsAt: string } } };
+    const body = await response.json() as { items: Opportunity[]; meta?: { freeQuota?: { kind: 'anonymous' | 'signup_bonus'; limit: number; remaining: number; resetsAt: string } } };
     items.value = body.items;
     freeQuota.value = body.meta?.freeQuota ?? null;
   } catch {
@@ -60,7 +60,7 @@ onMounted(load);
   <div class="explorer-shell">
     <header class="explorer-nav container">
       <a class="brand brand-logo" href="/" aria-label="Viralab home"><img src="/viralab-logo.svg" alt="Viralab"></a>
-      <span class="dataset-badge">{{ freeQuota ? (freeQuota.kind === 'login_bonus' ? `${freeQuota.remaining}/${freeQuota.limit} ${pt ? 'BUSCAS BÔNUS RESTANTES HOJE' : 'BONUS SEARCHES LEFT TODAY'}` : `${freeQuota.remaining}/${freeQuota.limit} ${pt ? 'CONSULTAS GRÁTIS HOJE' : 'FREE QUERIES LEFT TODAY'}`) : (pt ? 'DATASET VIRALAB · YOUTUBE' : 'VIRALAB DATASET · YOUTUBE') }}</span>
+      <span class="dataset-badge">{{ freeQuota ? (freeQuota.kind === 'signup_bonus' ? `${freeQuota.remaining}/${freeQuota.limit} ${pt ? 'BUSCAS BÔNUS DO CADASTRO' : 'SIGNUP BONUS SEARCHES LEFT'}` : `${freeQuota.remaining}/${freeQuota.limit} ${pt ? 'CONSULTAS GRÁTIS HOJE' : 'FREE QUERIES LEFT TODAY'}`) : (pt ? 'DATASET VIRALAB · YOUTUBE' : 'VIRALAB DATASET · YOUTUBE') }}</span>
     </header>
     <main class="container explorer-main">
       <div class="explorer-heading">
