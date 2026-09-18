@@ -54,6 +54,14 @@ jobs:
         run: pnpm --filter @viralab/web test
 
       - name: Build web
+        env:
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          VITE_SENTRY_RELEASE: ${{ github.sha }}
+          VITE_SENTRY_TRACES_SAMPLE_RATE: "0.1"
+          VITE_SENTRY_REPLAY_ON_ERROR_SAMPLE_RATE: "1"
+          SENTRY_ORG: viralab
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: pnpm --filter @viralab/web build
 
       - name: Smoke test built web runtime
