@@ -19,6 +19,9 @@ export interface DiscoveryPersistence {
     description?: string | null;
     thumbnailUrl?: string | null;
     publishedAt?: Date | null;
+    viewCount?: bigint | null;
+    likeCount?: bigint | null;
+    commentCount?: bigint | null;
     discoveredAt: Date;
   }): Promise<string>;
   claimChannelForIngestion(input: {
@@ -146,6 +149,9 @@ export const processDiscovery = async (
       description: item.video.description,
       thumbnailUrl: item.video.thumbnailUrl,
       publishedAt: item.video.publishedAt,
+      viewCount: item.video.viewCount,
+      likeCount: item.video.likeCount,
+      commentCount: item.video.commentCount,
       discoveredAt,
     });
     videosProcessed += 1;
