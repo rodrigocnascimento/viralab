@@ -41,6 +41,11 @@ async function submitWaitlist() {
  {label:'DISCOVER TRENDS',title:'Topics moving before Trending',metric:'7 rising'},
  {label:'FIND OUTLIERS',title:'Videos escaping the normal range',metric:'12.8×'},
  {label:'TRACK BREAKOUTS',title:'Channels leaving their baseline',metric:'+327%'},
+ {label:'MOVE EARLY',title:'Signal before consensus',metric:'4.2×'},
+ {label:'DISCOVER NICHES',title:'Small channels, shared acceleration',metric:'+184%'},
+ {label:'DISCOVER TRENDS',title:'Topics moving before Trending',metric:'7 rising'},
+ {label:'FIND OUTLIERS',title:'Videos escaping the normal range',metric:'12.8×'},
+ {label:'TRACK BREAKOUTS',title:'Channels leaving their baseline',metric:'+327%'},
  {label:'MOVE EARLY',title:'Signal before consensus',metric:'4.2×'}
 ]" :key="item.label" class="thumbnail-card" :class="`thumb-${index+1}`"><div class="thumb-art"><span>{{ String(index+1).padStart(2,'0') }}</span><i></i></div><p>{{item.label}}</p><h3>{{item.title}}</h3><strong>{{item.metric}}</strong></article></div></div>
 </section>
