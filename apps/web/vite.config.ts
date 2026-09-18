@@ -15,6 +15,7 @@ export default defineConfig({
           org: process.env.SENTRY_ORG ?? 'viralab',
           project: process.env.SENTRY_PROJECT,
           authToken: process.env.SENTRY_AUTH_TOKEN,
+          release: process.env.SENTRY_RELEASE ? { name: process.env.SENTRY_RELEASE } : undefined,
           sourcemaps: {
             filesToDeleteAfterUpload: ['./dist/**/*.map'],
           },
