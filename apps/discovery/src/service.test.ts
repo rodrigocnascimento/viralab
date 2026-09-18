@@ -96,8 +96,10 @@ describe('processDiscovery', () => {
       provider: 'youtube' as const,
       searchVideos: vi.fn(async () => providerResult),
     };
-    const persistence = makePersistence();
-    persistence.claimChannelForIngestion.mockResolvedValue({ status: 'skipped' });
+    const persistence = {
+      ...makePersistence(),
+      claimChannelForIngestion: vi.fn(async () => ({ status: 'skipped' as const })),
+    };
     const enqueueChannelIngestion = vi.fn(async () => undefined);
 
     const result = await processDiscovery(message, {
@@ -160,11 +162,13 @@ describe('processDiscovery', () => {
         items: [providerResult.items[0]!],
       })),
     };
-    const persistence = makePersistence();
-    persistence.claimChannelForIngestion.mockResolvedValue({
-      status: 'owned',
-      ingestionJobId: '44444444-4444-4444-8444-444444444444',
-    });
+    const persistence = {
+      ...makePersistence(),
+      claimChannelForIngestion: vi.fn(async () => ({
+        status: 'owned' as const,
+        ingestionJobId: '44444444-4444-4444-8444-444444444444',
+      })),
+    };
     const enqueueChannelIngestion = vi.fn(async () => undefined);
 
     const result = await processDiscovery(message, {
