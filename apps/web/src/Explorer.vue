@@ -53,7 +53,7 @@ onMounted(load);
 <template>
   <div class="explorer-shell">
     <header class="explorer-nav container">
-      <a class="brand" href="/"><span class="brand-mark">V</span><span>vira<strong>lab</strong></span></a>
+      <a class="brand brand-logo" href="/" aria-label="Viralab home"><img src="/viralab-logo.svg" alt="Viralab"></a>
       <span class="dataset-badge">{{ anonymousQuota ? `${anonymousQuota.remaining}/${anonymousQuota.limit} ${pt ? 'CONSULTAS GRÁTIS HOJE' : 'FREE QUERIES LEFT TODAY'}` : (pt ? 'DATASET VIRALAB · YOUTUBE' : 'VIRALAB DATASET · YOUTUBE') }}</span>
     </header>
     <main class="container explorer-main">
