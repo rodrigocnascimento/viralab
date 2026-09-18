@@ -15,7 +15,7 @@ const items = ref<Opportunity[]>([]);
 const loading = ref(true);
 const error = ref('');
 const minScore = ref(40);
-const anonymousQuota = ref<{ limit: number; remaining: number; resetsAt: string } | null>(null);
+const freeQuota = ref<{ kind: 'anonymous' | 'login_bonus'; limit: number; remaining: number; resetsAt: string } | null>(null);
 const anonymousId = (() => {
   const key = 'viralab.anonymous-id';
   const existing = localStorage.getItem(key);
@@ -35,16 +35,20 @@ const load = async () => {
     if (session?.access_token) headers.authorization = `Bearer ${session.access_token}`;
     const response = await fetch(`${apiBase}/api/v1/opportunities?minScore=${minScore.value}&limit=50`, { headers });
     if (response.status === 429) {
-      const body = await response.json().catch(() => null) as { upgrade?: string } | null;
+      const body = await response.json().catch(() => null) as { error?: string; upgrade?: string } | null;
       if (body?.upgrade === 'sign_in') {
         window.location.replace('/login?reason=anonymous_quota');
         return;
       }
+      if (body?.error === 'free_quota_exhausted') {
+        error.value = pt.value ? 'Seu bônus gratuito de hoje acabou. Novas consultas estarão disponíveis amanhã.' : 'Your free bonus is finished for today. More searches will be available tomorrow.';
+        return;
+      }
     }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const body = await response.json() as { items: Opportunity[]; meta?: { anonymousQuota?: { limit: number; remaining: number; resetsAt: string } } };
+    const body = await response.json() as { items: Opportunity[]; meta?: { freeQuota?: { kind: 'anonymous' | 'login_bonus'; limit: number; remaining: number; resetsAt: string } } };
     items.value = body.items;
-    anonymousQuota.value = body.meta?.anonymousQuota ?? null;
+    freeQuota.value = body.meta?.freeQuota ?? null;
   } catch {
     error.value = pt.value ? 'Não foi possível carregar os sinais agora.' : 'Unable to load signals right now.';
   } finally { loading.value = false; }
@@ -56,7 +60,7 @@ onMounted(load);
   <div class="explorer-shell">
     <header class="explorer-nav container">
       <a class="brand brand-logo" href="/" aria-label="Viralab home"><img src="/viralab-logo.svg" alt="Viralab"></a>
-      <span class="dataset-badge">{{ anonymousQuota ? `${anonymousQuota.remaining}/${anonymousQuota.limit} ${pt ? 'CONSULTAS GRÁTIS HOJE' : 'FREE QUERIES LEFT TODAY'}` : (pt ? 'DATASET VIRALAB · YOUTUBE' : 'VIRALAB DATASET · YOUTUBE') }}</span>
+      <span class="dataset-badge">{{ freeQuota ? (freeQuota.kind === 'login_bonus' ? `${freeQuota.remaining}/${freeQuota.limit} ${pt ? 'BUSCAS BÔNUS RESTANTES HOJE' : 'BONUS SEARCHES LEFT TODAY'}` : `${freeQuota.remaining}/${freeQuota.limit} ${pt ? 'CONSULTAS GRÁTIS HOJE' : 'FREE QUERIES LEFT TODAY'}`) : (pt ? 'DATASET VIRALAB · YOUTUBE' : 'VIRALAB DATASET · YOUTUBE') }}</span>
     </header>
     <main class="container explorer-main">
       <div class="explorer-heading">
