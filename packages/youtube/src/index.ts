@@ -1,5 +1,6 @@
 export const YOUTUBE_QUOTA_COST = {
   searchList: 100,
+  channelsList: 1,
 } as const;
 
 export type YouTubeDiscoveryItem = {
@@ -20,6 +21,27 @@ export type YouTubeDiscoveryResult = {
   items: YouTubeDiscoveryItem[];
   quotaCost: number;
   nextPageToken: string | null;
+};
+
+export type YouTubeChannelProfile = {
+  youtubeId: string;
+  title: string;
+  description: string | null;
+  thumbnailUrl: string | null;
+  publishedAt: Date | null;
+  customUrl: string | null;
+  country: string | null;
+  defaultLanguage: string | null;
+  uploadsPlaylistId: string | null;
+  subscriberCount: bigint | null;
+  viewCount: bigint | null;
+  videoCount: bigint | null;
+  hiddenSubscriberCount: boolean;
+};
+
+export type YouTubeChannelResult = {
+  channel: YouTubeChannelProfile;
+  quotaCost: number;
 };
 
 export type YouTubeErrorKind =
@@ -46,7 +68,15 @@ export interface YouTubeDiscoveryGateway {
   searchVideos(input: { query: string; maxResults: number }): Promise<YouTubeDiscoveryResult>;
 }
 
-type SearchListResponse = {
+export interface YouTubeChannelGateway {
+  getChannel(input: { youtubeChannelId: string }): Promise<YouTubeChannelResult>;
+}
+
+type YouTubeErrorPayload = {
+  error?: { code?: number; message?: string; errors?: Array<{ reason?: string }> };
+};
+
+type SearchListResponse = YouTubeErrorPayload & {
   nextPageToken?: string;
   items?: Array<{
     id?: { videoId?: string };
@@ -59,10 +89,35 @@ type SearchListResponse = {
       thumbnails?: Record<string, { url?: string }>;
     };
   }>;
-  error?: { code?: number; message?: string; errors?: Array<{ reason?: string }> };
 };
 
-const classifyError = (status: number, payload?: SearchListResponse): YouTubeGatewayError => {
+type ChannelsListResponse = YouTubeErrorPayload & {
+  items?: Array<{
+    id?: string;
+    snippet?: {
+      title?: string;
+      description?: string;
+      customUrl?: string;
+      publishedAt?: string;
+      country?: string;
+      defaultLanguage?: string;
+      thumbnails?: Record<string, { url?: string }>;
+    };
+    statistics?: {
+      subscriberCount?: string;
+      viewCount?: string;
+      videoCount?: string;
+      hiddenSubscriberCount?: boolean;
+    };
+    contentDetails?: {
+      relatedPlaylists?: {
+        uploads?: string;
+      };
+    };
+  }>;
+};
+
+const classifyError = (status: number, payload?: YouTubeErrorPayload): YouTubeGatewayError => {
   const reason = payload?.error?.errors?.[0]?.reason;
   const message = payload?.error?.message ?? `YouTube request failed with HTTP ${status}`;
 
@@ -87,7 +142,19 @@ const classifyError = (status: number, payload?: SearchListResponse): YouTubeGat
 const bestThumbnail = (thumbnails?: Record<string, { url?: string }>): string | null =>
   thumbnails?.high?.url ?? thumbnails?.medium?.url ?? thumbnails?.default?.url ?? null;
 
-export class YouTubeDataApiGateway implements YouTubeDiscoveryGateway {
+const parseOptionalBigInt = (value: string | undefined, field: string): bigint | null => {
+  if (value === undefined) return null;
+  if (!/^\d+$/.test(value)) {
+    throw new YouTubeGatewayError(
+      'unexpected_provider_response',
+      `YouTube returned an invalid ${field} value`,
+      false,
+    );
+  }
+  return BigInt(value);
+};
+
+export class YouTubeDataApiGateway implements YouTubeDiscoveryGateway, YouTubeChannelGateway {
   constructor(
     private readonly apiKey: string,
     private readonly fetcher: typeof fetch = fetch,
@@ -101,18 +168,7 @@ export class YouTubeDataApiGateway implements YouTubeDiscoveryGateway {
     url.searchParams.set('maxResults', String(Math.min(Math.max(input.maxResults, 1), 50)));
     url.searchParams.set('key', this.apiKey);
 
-    let response: Response;
-    try {
-      const fetcher = this.fetcher;
-      response = await fetcher(url);
-    } catch (error) {
-      throw new YouTubeGatewayError(
-        'provider_unavailable',
-        error instanceof Error ? error.message : 'Network failure calling YouTube',
-        true,
-      );
-    }
-
+    const response = await this.request(url);
     let payload: SearchListResponse;
     try {
       payload = (await response.json()) as SearchListResponse;
@@ -153,5 +209,86 @@ export class YouTubeDataApiGateway implements YouTubeDiscoveryGateway {
       quotaCost: YOUTUBE_QUOTA_COST.searchList,
       nextPageToken: payload.nextPageToken ?? null,
     };
+  }
+
+  async getChannel(input: { youtubeChannelId: string }): Promise<YouTubeChannelResult> {
+    const url = new URL('https://www.googleapis.com/youtube/v3/channels');
+    url.searchParams.set('part', 'snippet,statistics,contentDetails');
+    url.searchParams.set('id', input.youtubeChannelId);
+    url.searchParams.set('key', this.apiKey);
+
+    const response = await this.request(url);
+    let payload: ChannelsListResponse;
+    try {
+      payload = (await response.json()) as ChannelsListResponse;
+    } catch {
+      throw new YouTubeGatewayError('unexpected_provider_response', 'YouTube returned invalid JSON', response.status >= 500, response.status);
+    }
+
+    if (!response.ok) throw classifyError(response.status, payload);
+    if (!Array.isArray(payload.items)) {
+      throw new YouTubeGatewayError('unexpected_provider_response', 'YouTube response did not include items', false, response.status);
+    }
+
+    if (payload.items.length === 0) {
+      throw new YouTubeGatewayError(
+        'invalid_request',
+        `YouTube channel ${input.youtubeChannelId} was not found`,
+        false,
+        response.status,
+      );
+    }
+
+    const item = payload.items[0];
+    if (!item?.id || item.id !== input.youtubeChannelId) {
+      throw new YouTubeGatewayError(
+        'unexpected_provider_response',
+        'YouTube returned a channel identity different from the requested channel',
+        false,
+        response.status,
+      );
+    }
+
+    const title = item.snippet?.title;
+    if (!title) {
+      throw new YouTubeGatewayError(
+        'unexpected_provider_response',
+        'YouTube channel response did not include a title',
+        false,
+        response.status,
+      );
+    }
+
+    return {
+      channel: {
+        youtubeId: item.id,
+        title,
+        description: item.snippet?.description ?? null,
+        thumbnailUrl: bestThumbnail(item.snippet?.thumbnails),
+        publishedAt: item.snippet?.publishedAt ? new Date(item.snippet.publishedAt) : null,
+        customUrl: item.snippet?.customUrl ?? null,
+        country: item.snippet?.country ?? null,
+        defaultLanguage: item.snippet?.defaultLanguage ?? null,
+        uploadsPlaylistId: item.contentDetails?.relatedPlaylists?.uploads ?? null,
+        subscriberCount: parseOptionalBigInt(item.statistics?.subscriberCount, 'subscriberCount'),
+        viewCount: parseOptionalBigInt(item.statistics?.viewCount, 'viewCount'),
+        videoCount: parseOptionalBigInt(item.statistics?.videoCount, 'videoCount'),
+        hiddenSubscriberCount: item.statistics?.hiddenSubscriberCount ?? false,
+      },
+      quotaCost: YOUTUBE_QUOTA_COST.channelsList,
+    };
+  }
+
+  private async request(url: URL): Promise<Response> {
+    try {
+      const fetcher = this.fetcher;
+      return await fetcher(url);
+    } catch (error) {
+      throw new YouTubeGatewayError(
+        'provider_unavailable',
+        error instanceof Error ? error.message : 'Network failure calling YouTube',
+        true,
+      );
+    }
   }
 }
