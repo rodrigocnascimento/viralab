@@ -34,6 +34,7 @@ export const channels = pgTable(
     videoCount: bigint('video_count', { mode: 'bigint' }),
     hiddenSubscriberCount: boolean('hidden_subscriber_count'),
     lastIngestedAt: timestamp('last_ingested_at', { withTimezone: true }),
+    lastIngestionRequestedAt: timestamp('last_ingestion_requested_at', { withTimezone: true }),
     firstDiscoveredAt: timestamp('first_discovered_at', { withTimezone: true }).notNull().defaultNow(),
     lastDiscoveredAt: timestamp('last_discovered_at', { withTimezone: true }).notNull().defaultNow(),
     ...timestamps,
