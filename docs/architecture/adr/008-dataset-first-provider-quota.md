@@ -95,6 +95,51 @@ As of 2026-09-18, YouTube documents:
 
 Provider limits are configuration/policy inputs and can change. Code should model operation cost separately from bucket capacity.
 
+
+## Future quota-pool separation by use case
+
+Viralab may operate more than one Google Cloud / YouTube API project **only when the projects represent genuinely distinct use cases**, not to shard quota for the same workload.
+
+A likely future split is:
+
+```text
+USER-FACING POOL
+  -> paid/on-demand refresh
+  -> user-triggered discovery
+  -> customer tracking/monitoring
+
+PLATFORM / INTERNAL ANALYTICS POOL
+  -> autonomous Viralab discovery
+  -> internal market scanning
+  -> opportunity-generation pipelines
+```
+
+This separation is intentionally deferred. The current implementation may continue with a single provider credential until product usage justifies the operational complexity.
+
+If/when introduced:
+
+- each pool must have a documented use case and its own credential/project;
+- no automatic fallback may borrow quota from one pool when another is exhausted;
+- quota accounting, alerts and telemetry must remain separated by pool;
+- routing to a pool is decided by orchestration/policy, not by the provider gateway;
+- free-tier product reads continue to consume Viralab-owned data rather than provider quota;
+- this design must not be used to multiply quota for identical provider work.
+
+Suggested conceptual model:
+
+```text
+QuotaPool = USER | PLATFORM
+```
+
+with separate secrets such as:
+
+```text
+YOUTUBE_USER_API_KEY
+YOUTUBE_PLATFORM_API_KEY
+```
+
+The exact naming, deployment topology and quota allocator behavior are future implementation details. Revisit this decision before introducing autonomous scheduling at scale or paid on-demand refresh guarantees.
+
 ## Metrics
 
 At minimum, track:
