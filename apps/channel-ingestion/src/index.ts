@@ -57,16 +57,20 @@ export default {
         }));
 
         try {
-          const result = await processChannelIngestion(message, { provider, persistence });
-
-          console.log(JSON.stringify({
-            event: 'provider.request.completed',
-            provider: message.provider,
-            operation: 'channels.list',
-            quotaCost: result.quotaCost,
-            jobId: message.jobId,
-            correlationId: message.correlationId,
-          }));
+          const result = await processChannelIngestion(message, {
+            provider,
+            persistence,
+            onProviderRequestCompleted: ({ provider: requestProvider, operation, quotaCost }) => {
+              console.log(JSON.stringify({
+                event: 'provider.request.completed',
+                provider: requestProvider,
+                operation,
+                quotaCost,
+                jobId: message.jobId,
+                correlationId: message.correlationId,
+              }));
+            },
+          });
 
           console.log(JSON.stringify({
             event: 'channel_ingestion.persisted',
