@@ -36,6 +36,13 @@
       "when": 1789743000000,
       "tag": "0004_waitlist",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789758000000,
+      "tag": "0005_auth_profiles",
+      "breakpoints": true
     }
   ]
 }
