@@ -137,7 +137,11 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@24.13.5)(tsx@4.23.13)
 
-  packages/rate-limit: {}
+  packages/rate-limit:
+    devDependencies:
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@24.13.5)(tsx@4.23.13)
 
   packages/providers:
     devDependencies:
