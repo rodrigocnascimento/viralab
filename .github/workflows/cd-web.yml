@@ -1,0 +1,61 @@
+name: CD - Web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "tsconfig.base.json"
+      - ".github/workflows/cd-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: viralab-web-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy landing
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.15.1
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint web
+        run: pnpm --filter @viralab/web lint
+
+      - name: Typecheck web
+        run: pnpm --filter @viralab/web typecheck
+
+      - name: Test web
+        run: pnpm --filter @viralab/web test
+
+      - name: Build web
+        run: pnpm --filter @viralab/web build
+
+      - name: Deploy landing to Cloudflare Workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @viralab/web exec wrangler deploy

@@ -19,12 +19,12 @@ const { t } = useI18n();
           <h1>{{ t('hero.title') }} <em>{{ t('hero.emphasis') }}</em></h1>
           <p class="lead">{{ t('hero.lead') }}</p>
           <div class="actions"><a class="button" href="#opportunities">{{ t('nav.explore') }} <span>→</span></a><a class="text-link" href="#how">{{ t('hero.how') }}</a></div>
-          <p class="microcopy">{{ t('hero.microcopy') }}</p>
+          <p class="microcopy">{{ t('hero.microcopy') }}</p><p class="launch-note">{{ t('hero.launchNote') }}</p>
         </div>
         <div class="hero-visual" aria-label="Viralab opportunity preview">
           <div class="sun"></div>
           <div class="dog" aria-hidden="true"><span class="ear left"></span><span class="ear right"></span><span class="face"><i class="eye e1"></i><i class="eye e2"></i><i class="muzzle"></i></span></div>
-          <div class="signal-card"><span class="signal-label">{{ t('hero.signal') }}</span><strong>+327%</strong><span>{{ t('hero.velocity') }}</span></div><div class="dots"></div>
+          <div class="signal-card"><span class="signal-label">{{ t('hero.sample') }}</span><span class="signal-label">{{ t('hero.signal') }}</span><strong>+327%</strong><span>{{ t('hero.velocity') }}</span></div><div class="dots"></div>
         </div>
       </section>
 
@@ -43,6 +43,8 @@ const { t } = useI18n();
         <div class="dashboard-card"><div class="dash-head"><span>{{ t('intelligence.breakout') }}</span><b>91 <small>/ 100</small></b></div><h3>Oficina do João</h3><p>Automotive · Brazil</p><div class="chart"><span style="height:18%"></span><span style="height:24%"></span><span style="height:29%"></span><span style="height:38%"></span><span style="height:58%"></span><span style="height:88%"></span></div><div class="dash-stats"><span><small>{{ t('intelligence.subscribers') }}</small><b>18.4K</b></span><span><small>{{ t('intelligence.growth') }}</small><b>+327%</b></span><span><small>{{ t('intelligence.velocity') }}</small><b>4.2×</b></span></div></div></div></section>
 
       <section id="about" class="moat container"><p class="eyebrow">{{ t('moat.eyebrow') }}</p><h2>{{ t('moat.title') }}<br><em>{{ t('moat.emphasis') }}</em></h2><p>{{ t('moat.text') }}</p></section>
+
+      <section class="final-cta band"><div class="container final-cta-inner"><div><p class="eyebrow">{{ t('cta.eyebrow') }}</p><h2>{{ t('cta.title') }}</h2><p>{{ t('cta.text') }}</p></div><a class="button button-light" href="#opportunities">{{ t('cta.button') }} <span>→</span></a></div></section>
     </main>
 
     <footer><div class="container footer-inner"><a class="brand" href="#top"><span class="brand-mark">V</span><span>vira<strong>lab</strong></span></a><p>{{ t('footer.tagline') }}</p><span>© 2026 Viralab</span></div></footer>
