@@ -1,5 +1,5 @@
 export const YOUTUBE_QUOTA_COST = {
-  searchList: 100,
+  searchList: 1,
   channelsList: 1,
 } as const;
 
