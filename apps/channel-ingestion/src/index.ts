@@ -60,7 +60,7 @@ export default {
           const result = await processChannelIngestion(message, { provider, persistence });
 
           console.log(JSON.stringify({
-            event: 'youtube.request.completed',
+            event: 'provider.request.completed',
             provider: message.provider,
             operation: 'channels.list',
             quotaCost: result.quotaCost,
