@@ -25,15 +25,22 @@ export interface DiscoveryPersistence {
     channelId: string;
     provider: DiscoveryQueueMessage['provider'];
     providerId: string;
+    ownerJobId: string;
+    ingestionJobId: string;
     requestedAt: Date;
     freshAfter: Date;
     claimExpiredBefore: Date;
-  }): Promise<boolean>;
+  }): Promise<
+    | { status: 'claimed'; ingestionJobId: string }
+    | { status: 'owned'; ingestionJobId: string }
+    | { status: 'skipped' }
+  >;
   releaseChannelIngestionClaim(input: {
     channelId: string;
     provider: DiscoveryQueueMessage['provider'];
     providerId: string;
-    requestedAt: Date;
+    ownerJobId: string;
+    ingestionJobId: string;
   }): Promise<void>;
 }
 
@@ -83,23 +90,28 @@ export const processDiscovery = async (
       channelIds.set(item.channel.providerId, channelId);
 
       if (deps.enqueueChannelIngestion) {
-        const claimed = await deps.persistence.claimChannelForIngestion({
+        const uuid = deps.randomUUID ?? crypto.randomUUID.bind(crypto);
+        const proposedIngestionJobId = uuid();
+        const claim = await deps.persistence.claimChannelForIngestion({
           channelId,
           provider: message.provider,
           providerId: item.channel.providerId,
+          ownerJobId: message.jobId,
+          ingestionJobId: proposedIngestionJobId,
           requestedAt: discoveredAt,
           freshAfter: new Date(discoveredAt.getTime() - deps.channelFreshnessMs),
           claimExpiredBefore: new Date(discoveredAt.getTime() - deps.ingestionClaimTtlMs),
         });
 
-        if (claimed) {
-          const uuid = deps.randomUUID ?? crypto.randomUUID.bind(crypto);
+        if (claim.status === 'skipped') {
+          channelIngestionsSkipped += 1;
+        } else {
           try {
             await deps.enqueueChannelIngestion({
               version: 1,
               type: 'content.channel.ingestion.requested',
               provider: message.provider,
-              jobId: uuid(),
+              jobId: claim.ingestionJobId,
               correlationId: message.correlationId,
               channelId,
               providerChannelId: item.channel.providerId,
@@ -108,16 +120,20 @@ export const processDiscovery = async (
             });
             channelIngestionsEnqueued += 1;
           } catch (error) {
-            await deps.persistence.releaseChannelIngestionClaim({
-              channelId,
-              provider: message.provider,
-              providerId: item.channel.providerId,
-              requestedAt: discoveredAt,
-            });
+            try {
+              await deps.persistence.releaseChannelIngestionClaim({
+                channelId,
+                provider: message.provider,
+                providerId: item.channel.providerId,
+                ownerJobId: message.jobId,
+                ingestionJobId: claim.ingestionJobId,
+              });
+            } catch {
+              // Keep the original queue failure. A retry with the same discovery job
+              // can resume the owned claim and republish the same ingestion job ID.
+            }
             throw error;
           }
-        } else {
-          channelIngestionsSkipped += 1;
         }
       }
     }
