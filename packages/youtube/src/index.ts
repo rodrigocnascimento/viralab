@@ -10,6 +10,7 @@ import {
 export const YOUTUBE_QUOTA_COST = {
   searchList: 1,
   channelsList: 1,
+  videosList: 1,
 } as const;
 
 export type YouTubeErrorKind = ProviderErrorKind;
@@ -42,6 +43,13 @@ type SearchListResponse = YouTubeErrorPayload & {
       channelTitle?: string;
       thumbnails?: Record<string, { url?: string }>;
     };
+  }>;
+};
+
+type VideosListResponse = YouTubeErrorPayload & {
+  items?: Array<{
+    id?: string;
+    statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
   }>;
 };
 
@@ -152,6 +160,9 @@ export class YouTubeDataApiGateway implements DiscoveryProvider, ChannelProvider
           description: item.snippet?.description ?? null,
           thumbnailUrl: bestThumbnail(item.snippet?.thumbnails),
           publishedAt: item.snippet?.publishedAt ? new Date(item.snippet.publishedAt) : null,
+          viewCount: null,
+          likeCount: null,
+          commentCount: null,
         },
         channel: {
           providerId: channelId,
@@ -160,11 +171,51 @@ export class YouTubeDataApiGateway implements DiscoveryProvider, ChannelProvider
       });
     }
 
+    if (items.length > 0) {
+      const metrics = await this.getVideoMetrics(items.map((item) => item.video.providerId));
+      for (const item of items) {
+        const stats = metrics.get(item.video.providerId);
+        item.video.viewCount = stats?.viewCount ?? null;
+        item.video.likeCount = stats?.likeCount ?? null;
+        item.video.commentCount = stats?.commentCount ?? null;
+      }
+    }
+
     return {
       items,
-      quotaCost: YOUTUBE_QUOTA_COST.searchList,
+      quotaCost: YOUTUBE_QUOTA_COST.searchList + (items.length > 0 ? YOUTUBE_QUOTA_COST.videosList : 0),
       nextPageToken: payload.nextPageToken ?? null,
     };
+  }
+
+  private async getVideoMetrics(ids: string[]): Promise<Map<string, { viewCount: bigint | null; likeCount: bigint | null; commentCount: bigint | null }>> {
+    const url = new URL('https://www.googleapis.com/youtube/v3/videos');
+    url.searchParams.set('part', 'statistics');
+    url.searchParams.set('id', ids.join(','));
+    url.searchParams.set('key', this.apiKey);
+
+    const response = await this.request(url);
+    let payload: VideosListResponse;
+    try {
+      payload = (await response.json()) as VideosListResponse;
+    } catch {
+      throw new YouTubeGatewayError('unexpected_provider_response', 'YouTube returned invalid JSON for video metrics', response.status >= 500, response.status);
+    }
+    if (!response.ok) throw classifyError(response.status, payload);
+    if (!Array.isArray(payload.items)) {
+      throw new YouTubeGatewayError('unexpected_provider_response', 'YouTube video metrics response did not include items', false, response.status);
+    }
+
+    const metrics = new Map<string, { viewCount: bigint | null; likeCount: bigint | null; commentCount: bigint | null }>();
+    for (const item of payload.items) {
+      if (!item.id) continue;
+      metrics.set(item.id, {
+        viewCount: parseOptionalBigInt(item.statistics?.viewCount, 'viewCount'),
+        likeCount: parseOptionalBigInt(item.statistics?.likeCount, 'likeCount'),
+        commentCount: parseOptionalBigInt(item.statistics?.commentCount, 'commentCount'),
+      });
+    }
+    return metrics;
   }
 
   async getChannel(input: { providerChannelId: string }): Promise<ProviderChannelResult> {

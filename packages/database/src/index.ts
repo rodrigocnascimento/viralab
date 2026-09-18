@@ -1,7 +1,9 @@
-import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, lt, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { analyticsEvents, channels, videos } from './schema.js';
+import { analyticsEvents, channels, opportunities, videos } from './schema.js';
+import { scoreVideoOutlier } from './opportunity.js';
+export * from './opportunity.js';
 
 export * from './schema.js';
 
@@ -92,6 +94,9 @@ export class DiscoveryRepository {
     description?: string | null;
     thumbnailUrl?: string | null;
     publishedAt?: Date | null;
+    viewCount?: bigint | null;
+    likeCount?: bigint | null;
+    commentCount?: bigint | null;
     discoveredAt: Date;
   }): Promise<string> {
     const updates: Partial<typeof videos.$inferInsert> = {
@@ -104,6 +109,10 @@ export class DiscoveryRepository {
     if (input.description !== undefined) updates.description = input.description;
     if (input.thumbnailUrl !== undefined) updates.thumbnailUrl = input.thumbnailUrl;
     if (input.publishedAt !== undefined) updates.publishedAt = input.publishedAt;
+    if (input.viewCount !== undefined) updates.viewCount = input.viewCount;
+    if (input.likeCount !== undefined) updates.likeCount = input.likeCount;
+    if (input.commentCount !== undefined) updates.commentCount = input.commentCount;
+    if (input.viewCount !== undefined || input.likeCount !== undefined || input.commentCount !== undefined) updates.lastIngestedAt = input.discoveredAt;
 
     const [row] = await this.db
       .insert(videos)
@@ -114,6 +123,10 @@ export class DiscoveryRepository {
         description: input.description ?? null,
         thumbnailUrl: input.thumbnailUrl ?? null,
         publishedAt: input.publishedAt ?? null,
+        viewCount: input.viewCount ?? null,
+        likeCount: input.likeCount ?? null,
+        commentCount: input.commentCount ?? null,
+        lastIngestedAt: input.viewCount !== undefined || input.likeCount !== undefined || input.commentCount !== undefined ? input.discoveredAt : null,
         firstDiscoveredAt: input.discoveredAt,
         lastDiscoveredAt: input.discoveredAt,
         updatedAt: input.discoveredAt,
@@ -125,7 +138,34 @@ export class DiscoveryRepository {
       .returning({ id: videos.id });
 
     if (!row) throw new Error('Video upsert did not return a row');
+    await this.recomputeVideoOpportunity(row.id, input.channelId, input.provider, input.discoveredAt);
     return row.id;
+  }
+
+  private async recomputeVideoOpportunity(videoId: string, channelId: string, provider: 'youtube', detectedAt: Date): Promise<void> {
+    const [video] = await this.db.select().from(videos).where(and(eq(videos.id, videoId), eq(videos.channelId, channelId))).limit(1);
+    const [channel] = await this.db.select().from(channels).where(eq(channels.id, channelId)).limit(1);
+    if (!video || video.viewCount === null || !channel?.viewCount || !channel.videoCount) return;
+
+    const signal = scoreVideoOutlier({ videoViews: video.viewCount, channelViews: channel.viewCount, channelVideos: channel.videoCount });
+    if (!signal) {
+      await this.db.delete(opportunities).where(and(eq(opportunities.videoId, video.id), eq(opportunities.type, 'video_outlier')));
+      return;
+    }
+    const evidence = {
+      model: 'channel_lifetime_average_v1',
+      channelViewCount: channel.viewCount.toString(),
+      channelVideoCount: channel.videoCount.toString(),
+    };
+    await this.db.insert(opportunities).values({
+      type: 'video_outlier', provider, videoId: video.id, channelId, score: signal.score, confidence: signal.confidence,
+      multiplier: signal.multiplier, baselineViewCount: signal.baselineViews, observedViewCount: video.viewCount,
+      evidence, detectedAt, updatedAt: detectedAt,
+    }).onConflictDoUpdate({
+      target: [opportunities.videoId, opportunities.type],
+      set: { score: signal.score, confidence: signal.confidence, multiplier: signal.multiplier, baselineViewCount: signal.baselineViews,
+        observedViewCount: video.viewCount, evidence, detectedAt, updatedAt: detectedAt },
+    });
   }
 
   async findChannelByProviderId(provider: 'youtube', providerId: string) {
@@ -264,5 +304,48 @@ export class DiscoveryRepository {
     if (!row) {
       throw new Error('Channel enrichment identity mismatch or channel not found');
     }
+
+    const channelVideos = await this.db.select({ id: videos.id }).from(videos).where(eq(videos.channelId, input.channelId));
+    for (const video of channelVideos) {
+      await this.recomputeVideoOpportunity(video.id, input.channelId, input.provider, input.ingestedAt);
+    }
+  }
+}
+
+export class OpportunityRepository {
+  constructor(private readonly db: ViralabDatabase) {}
+
+  async list(input: { minScore: number; limit: number; detectedAfter?: Date }) {
+    const conditions = [gte(opportunities.score, input.minScore)];
+    if (input.detectedAfter) conditions.push(gte(opportunities.detectedAt, input.detectedAfter));
+
+    return this.db
+      .select({
+        id: opportunities.id,
+        type: opportunities.type,
+        provider: opportunities.provider,
+        score: opportunities.score,
+        confidence: opportunities.confidence,
+        multiplier: opportunities.multiplier,
+        baselineViewCount: opportunities.baselineViewCount,
+        observedViewCount: opportunities.observedViewCount,
+        detectedAt: opportunities.detectedAt,
+        videoId: videos.id,
+        videoProviderId: videos.youtubeId,
+        videoTitle: videos.title,
+        videoThumbnailUrl: videos.thumbnailUrl,
+        videoPublishedAt: videos.publishedAt,
+        channelId: channels.id,
+        channelProviderId: channels.youtubeId,
+        channelTitle: channels.title,
+        channelThumbnailUrl: channels.thumbnailUrl,
+        subscriberCount: channels.subscriberCount,
+      })
+      .from(opportunities)
+      .innerJoin(videos, eq(opportunities.videoId, videos.id))
+      .innerJoin(channels, eq(opportunities.channelId, channels.id))
+      .where(and(...conditions))
+      .orderBy(desc(opportunities.score), desc(opportunities.detectedAt))
+      .limit(input.limit);
   }
 }

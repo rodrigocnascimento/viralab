@@ -24,7 +24,7 @@ describe('YouTubeDataApiGateway', () => {
     const gateway = new YouTubeDataApiGateway('secret', fetchMock as unknown as typeof fetch);
     const result = await gateway.searchVideos({ query: 'homelab', maxResults: 25 });
 
-    expect(result.quotaCost).toBe(YOUTUBE_QUOTA_COST.searchList);
+    expect(result.quotaCost).toBe(YOUTUBE_QUOTA_COST.searchList + YOUTUBE_QUOTA_COST.videosList);
     expect(result.nextPageToken).toBe('next');
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.channel).toEqual({ providerId: 'channel-1', title: 'Homelab Channel' });
