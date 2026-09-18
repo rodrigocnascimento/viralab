@@ -29,6 +29,9 @@ importers:
       '@viralab/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@viralab/rate-limit':
+        specifier: workspace:*
+        version: link:../../packages/rate-limit
       '@viralab/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -133,6 +136,8 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@24.13.5)(tsx@4.23.13)
+
+  packages/rate-limit: {}
 
   packages/providers:
     devDependencies:
