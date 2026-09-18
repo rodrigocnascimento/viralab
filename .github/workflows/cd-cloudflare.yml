@@ -49,20 +49,20 @@ jobs:
 
       - name: Checkout release commit
         if: steps.release.outputs.deploy == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ steps.release.outputs.sha }}
 
       - name: Setup pnpm
         if: steps.release.outputs.deploy == 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10.15.1
           run_install: false
 
       - name: Setup Node.js
         if: steps.release.outputs.deploy == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
