@@ -89,6 +89,17 @@ jobs:
         run: pnpm --filter @viralab/api exec wrangler deploy
 
 
+      - name: Build channel ingestion consumer
+        if: steps.release.outputs.deploy == 'true'
+        run: pnpm --filter @viralab/channel-ingestion... build
+
+      - name: Deploy channel ingestion consumer
+        if: steps.release.outputs.deploy == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @viralab/channel-ingestion exec wrangler deploy
+
       - name: Build discovery consumer
         if: steps.release.outputs.deploy == 'true'
         run: pnpm --filter @viralab/discovery... build
