@@ -14,6 +14,7 @@ export const initSentry = (app: App): boolean => {
   Sentry.init({
     app,
     dsn,
+    tunnel: '/api/sentry',
     environment: import.meta.env.MODE,
     release: import.meta.env.VITE_SENTRY_RELEASE || undefined,
     sendDefaultPii: false,
