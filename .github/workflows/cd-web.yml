@@ -44,6 +44,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Cloudflare types
+        run: pnpm --filter @viralab/web exec wrangler types
+
       - name: Lint web
         run: pnpm --filter @viralab/web lint
 
