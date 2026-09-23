@@ -36,12 +36,10 @@ const renderBootFailure = () => {
 
 window.addEventListener('error', (event) => {
   console.error('[viralab:web:error]', event.error ?? event.message);
-  renderBootFailure();
 });
 
 window.addEventListener('unhandledrejection', (event) => {
   console.error('[viralab:web:unhandledrejection]', event.reason);
-  renderBootFailure();
 });
 
 try {
@@ -59,20 +57,11 @@ try {
       });
     }
     console.error('[viralab:web:vue-error]', { error, instance, info });
-    renderBootFailure();
   };
 
   app.use(i18n);
   app.mount('#app');
 
-  // Temporary production diagnostic: opt-in only via ?sentry-test=1.
-  // This must originate from the application bundle so Sentry's browser
-  // instrumentation can be tested without the DevTools execution context.
-  if (new URLSearchParams(window.location.search).get('sentry-test') === '1') {
-    window.setTimeout(() => {
-      throw new Error('viralab-sentry-bundle-test');
-    }, 3000);
-  }
 } catch (error) {
   Sentry.captureException(error);
   console.error('[viralab:web:bootstrap-error]', error);
