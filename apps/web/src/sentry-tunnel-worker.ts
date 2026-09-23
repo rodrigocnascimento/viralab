@@ -84,6 +84,15 @@ export default {
       return handleSentryTunnel(request, env);
     }
 
-    return env.ASSETS.fetch(request);
+    const assetResponse = await env.ASSETS.fetch(request);
+    const response = new Response(assetResponse.body, assetResponse);
+
+    // Cloudflare Web Analytics' automatically injected browser beacon is
+    // commonly blocked by privacy/ad-blocking clients, producing noisy
+    // ERR_BLOCKED_BY_CLIENT console errors. ViralLab already has Sentry for
+    // browser observability and Cloudflare edge/Worker observability enabled.
+    response.headers.set('Cache-Control', 'public, no-transform');
+
+    return response;
   },
 };
