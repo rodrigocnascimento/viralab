@@ -2,7 +2,7 @@
   "extends": "@vue/tsconfig/tsconfig.dom.json",
   "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"],
   "compilerOptions": {
-    "types": ["vite/client", "@cloudflare/workers-types"],
+    "types": ["vite/client"],
     "strict": true
   }
 }
