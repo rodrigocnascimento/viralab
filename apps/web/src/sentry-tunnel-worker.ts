@@ -6,13 +6,16 @@ const json = (status: number, body: Record<string, unknown>) =>
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
 
-const parseEnvelopeHeader = (body: string): Record<string, unknown> | null => {
-  const newline = body.indexOf('\n');
-  const header = newline === -1 ? body : body.slice(0, newline);
+const parseEnvelopeHeader = (body: ArrayBuffer): Record<string, unknown> | null => {
+  const bytes = new Uint8Array(body);
+  const newline = bytes.indexOf(0x0a);
+  const headerBytes = newline === -1 ? bytes : bytes.subarray(0, newline);
 
   try {
-    const parsed = JSON.parse(header);
-    return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : null;
+    const parsed = JSON.parse(new TextDecoder().decode(headerBytes));
+    return parsed && typeof parsed === 'object'
+      ? (parsed as Record<string, unknown>)
+      : null;
   } catch {
     return null;
   }
@@ -23,8 +26,10 @@ const isExpectedDsn = (value: unknown, env: Env): boolean => {
 
   try {
     const dsn = new URL(value);
-    return dsn.origin === env.SENTRY_INGEST_ORIGIN &&
-      dsn.pathname.replace(/^\/+|\/+$/g, '') === env.SENTRY_PROJECT_ID;
+    return (
+      dsn.origin === env.SENTRY_INGEST_ORIGIN &&
+      dsn.pathname.replace(/^\/+|\/+$/g, '') === env.SENTRY_PROJECT_ID
+    );
   } catch {
     return false;
   }
@@ -40,8 +45,8 @@ const handleSentryTunnel = async (request: Request, env: Env): Promise<Response>
     return json(413, { error: 'Envelope too large' });
   }
 
-  const body = await request.text();
-  if (new TextEncoder().encode(body).byteLength > MAX_ENVELOPE_BYTES) {
+  const body = await request.arrayBuffer();
+  if (body.byteLength > MAX_ENVELOPE_BYTES) {
     return json(413, { error: 'Envelope too large' });
   }
 
@@ -59,11 +64,15 @@ const handleSentryTunnel = async (request: Request, env: Env): Promise<Response>
     },
   );
 
+  const headers = new Headers({ 'cache-control': 'no-store' });
+  for (const name of ['x-sentry-rate-limits', 'retry-after']) {
+    const value = upstream.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+
   return new Response(null, {
     status: upstream.status,
-    headers: {
-      'cache-control': 'no-store',
-    },
+    headers,
   });
 };
 
@@ -78,4 +87,3 @@ export default {
     return env.ASSETS.fetch(request);
   },
 };
-
