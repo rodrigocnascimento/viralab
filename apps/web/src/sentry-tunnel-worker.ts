@@ -79,8 +79,3 @@ export default {
   },
 };
 
-interface Env {
-  ASSETS: Fetcher;
-  SENTRY_INGEST_ORIGIN: string;
-  SENTRY_PROJECT_ID: string;
-}
