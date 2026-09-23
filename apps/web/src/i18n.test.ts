@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { resolveLocale } from './i18n';
+import { createI18n } from 'vue-i18n';
+import { messages, resolveLocale } from './i18n';
 
 describe('resolveLocale', () => {
   it('maps Brazilian Portuguese to pt-BR', () => {
@@ -24,5 +25,21 @@ describe('resolveLocale', () => {
   it('falls back to English for unsupported or missing locales', () => {
     expect(resolveLocale(['es-ES'])).toBe('en');
     expect(resolveLocale([])).toBe('en');
+  });
+});
+
+describe('translation messages', () => {
+  it('compiles literal email placeholders for both supported locales', () => {
+    const instance = createI18n({
+      legacy: false,
+      locale: 'en',
+      fallbackLocale: 'en',
+      messages,
+    });
+
+    expect(instance.global.t('access.emailPlaceholder')).toBe('you@company.com');
+
+    instance.global.locale.value = 'pt-BR';
+    expect(instance.global.t('access.emailPlaceholder')).toBe('voce@empresa.com');
   });
 });
