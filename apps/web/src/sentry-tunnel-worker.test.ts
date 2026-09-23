@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import worker from './sentry-tunnel-worker';
 
 const env = {
+  SENTRY_INGEST_ORIGIN: 'https://o4512109059768321.ingest.us.sentry.io',
+  SENTRY_PROJECT_ID: '4512109539033088',
   ASSETS: {
     fetch: vi.fn(async () => new Response('asset')),
   },
