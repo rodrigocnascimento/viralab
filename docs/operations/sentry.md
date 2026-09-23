@@ -96,3 +96,22 @@ Do not add a permanent public `/sentry-test` endpoint or query parameter to prod
 The Sentry Agent Plugin is separate from the application SDK. It provides Sentry skills and a hosted MCP connection to supported coding agents.
 
 Installation authorization/run codes are ephemeral setup material and must not be committed to this repository.
+
+
+## First-party tunnel
+
+Browser envelopes are sent to the same-origin endpoint `/api/sentry` instead of directly to Sentry ingest. This reduces telemetry loss caused by browser extensions and privacy filters that block known third-party observability domains.
+
+The web Cloudflare Worker owns this route and forwards accepted envelopes to the Viralab Sentry project. The tunnel is deliberately not a generic proxy:
+
+- only `POST /api/sentry` is accepted
+- envelope size is capped at 1 MB
+- the envelope header must contain the expected Sentry origin and project ID
+- the upstream origin and project ID are fixed server-side
+- the CI `SENTRY_AUTH_TOKEN` is never used or exposed at runtime
+
+All other requests continue through the Cloudflare static-assets binding, including SPA fallback behavior.
+
+The tunnel improves delivery when a filter blocks Sentry's public ingest hostname. It cannot guarantee telemetry when an extension blocks the SDK itself, blocks the first-party route by request semantics, or prevents JavaScript execution.
+
+Cloudflare Web Analytics is separate from Sentry. A browser may independently block `static.cloudflareinsights.com`; that does not indicate an application failure and is outside the Sentry tunnel.
