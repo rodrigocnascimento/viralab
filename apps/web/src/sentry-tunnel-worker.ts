@@ -1,5 +1,3 @@
-const SENTRY_INGEST_ORIGIN = 'https://o4512109059768321.ingest.us.sentry.io';
-const SENTRY_PROJECT_ID = '4512109539033088';
 const MAX_ENVELOPE_BYTES = 1_000_000;
 
 const json = (status: number, body: Record<string, unknown>) =>
@@ -20,19 +18,19 @@ const parseEnvelopeHeader = (body: string): Record<string, unknown> | null => {
   }
 };
 
-const isExpectedDsn = (value: unknown): boolean => {
+const isExpectedDsn = (value: unknown, env: Env): boolean => {
   if (typeof value !== 'string') return false;
 
   try {
     const dsn = new URL(value);
-    return dsn.origin === SENTRY_INGEST_ORIGIN &&
-      dsn.pathname.replace(/^\/+|\/+$/g, '') === SENTRY_PROJECT_ID;
+    return dsn.origin === env.SENTRY_INGEST_ORIGIN &&
+      dsn.pathname.replace(/^\/+|\/+$/g, '') === env.SENTRY_PROJECT_ID;
   } catch {
     return false;
   }
 };
 
-const handleSentryTunnel = async (request: Request): Promise<Response> => {
+const handleSentryTunnel = async (request: Request, env: Env): Promise<Response> => {
   if (request.method !== 'POST') {
     return new Response(null, { status: 405, headers: { allow: 'POST' } });
   }
@@ -48,12 +46,12 @@ const handleSentryTunnel = async (request: Request): Promise<Response> => {
   }
 
   const header = parseEnvelopeHeader(body);
-  if (!header || !isExpectedDsn(header.dsn)) {
+  if (!header || !isExpectedDsn(header.dsn, env)) {
     return json(400, { error: 'Invalid Sentry envelope' });
   }
 
   const upstream = await fetch(
-    `${SENTRY_INGEST_ORIGIN}/api/${SENTRY_PROJECT_ID}/envelope/`,
+    `${env.SENTRY_INGEST_ORIGIN}/api/${env.SENTRY_PROJECT_ID}/envelope/`,
     {
       method: 'POST',
       headers: { 'content-type': 'application/x-sentry-envelope' },
@@ -74,7 +72,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/api/sentry') {
-      return handleSentryTunnel(request);
+      return handleSentryTunnel(request, env);
     }
 
     return (env.ASSETS as { fetch(request: Request): Promise<Response> }).fetch(request);
@@ -83,4 +81,6 @@ export default {
 
 interface Env {
   ASSETS: unknown;
+  SENTRY_INGEST_ORIGIN: string;
+  SENTRY_PROJECT_ID: string;
 }
