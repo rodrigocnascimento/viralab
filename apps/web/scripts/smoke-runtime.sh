@@ -41,34 +41,42 @@ smoke() {
   local name="$3"
   local dom_file="/tmp/viralab-${name}.html"
   local browser_log="/tmp/viralab-${name}-browser.log"
+  local max_attempts=1
 
-  "$CHROME" \
-    --headless \
-    --no-sandbox \
-    --disable-gpu \
-    --disable-dev-shm-usage \
-    --virtual-time-budget=4000 \
-    --dump-dom "${BASE_URL}${path}" \
-    > "$dom_file" 2> "$browser_log" || {
-      echo "::error::Headless browser failed for ${BASE_URL}${path}"
-      cat "$browser_log" || true
-      exit 1
-    }
-
-  if ! grep -Fq "$marker" "$dom_file"; then
-    echo "::error::Viralab runtime smoke failed for ${BASE_URL}${path}; expected marker: ${marker}"
-    echo "--- browser stderr ---"
-    cat "$browser_log" || true
-    echo "--- rendered DOM ---"
-    cat "$dom_file" || true
-    if [[ -f /tmp/viralab-vite-preview.log ]]; then
-      echo "--- vite preview ---"
-      cat /tmp/viralab-vite-preview.log || true
-    fi
-    exit 1
+  if [[ "$BASE_URL" != "http://127.0.0.1:4173" ]]; then
+    max_attempts=5
   fi
 
-  echo "Runtime smoke passed: ${BASE_URL}${path}"
+  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+    if "$CHROME" \
+      --headless \
+      --no-sandbox \
+      --disable-gpu \
+      --disable-dev-shm-usage \
+      --virtual-time-budget=4000 \
+      --dump-dom "${BASE_URL}${path}" \
+      > "$dom_file" 2> "$browser_log" && grep -Fq "$marker" "$dom_file"; then
+      echo "Runtime smoke passed: ${BASE_URL}${path}"
+      return 0
+    fi
+
+    if (( attempt < max_attempts )); then
+      local delay=$((attempt * 2))
+      echo "Runtime smoke attempt ${attempt}/${max_attempts} failed for ${BASE_URL}${path}; retrying in ${delay}s"
+      sleep "$delay"
+    fi
+  done
+
+  echo "::error::Viralab runtime smoke failed for ${BASE_URL}${path} after ${max_attempts} attempt(s); expected marker: ${marker}"
+  echo "--- browser stderr ---"
+  cat "$browser_log" || true
+  echo "--- rendered DOM ---"
+  cat "$dom_file" || true
+  if [[ -f /tmp/viralab-vite-preview.log ]]; then
+    echo "--- vite preview ---"
+    cat /tmp/viralab-vite-preview.log || true
+  fi
+  exit 1
 }
 
 smoke "/" 'class="site-shell"' "landing"
