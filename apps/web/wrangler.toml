@@ -4,6 +4,10 @@ compatibility_date = "2026-09-18"
 workers_dev = false
 preview_urls = false
 
+[vars]
+SENTRY_INGEST_ORIGIN = "https://o4512109059768321.ingest.us.sentry.io"
+SENTRY_PROJECT_ID = "4512109539033088"
+
 [[routes]]
 pattern = "viralab.space"
 custom_domain = true
