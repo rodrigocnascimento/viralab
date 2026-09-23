@@ -11,8 +11,25 @@ const envelope = (dsn: string) =>
   `${JSON.stringify({ event_id: 'abc', dsn })}\n{"type":"event"}\n{}\n`;
 
 describe('web worker Sentry tunnel', () => {
-  it('forwards only envelopes for the configured Sentry project', async () => {
+  it('forwards envelopes for the configured Sentry project', async () => {
     const upstream = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const response = await worker.fetch(
+      new Request('https://viralab.space/api/sentry', {
+        method: 'POST',
+        body: envelope('https://public@o4512109059768321.ingest.us.sentry.io/4512109539033088'),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(upstream).toHaveBeenCalledOnce();
+    expect(upstream.mock.calls[0]?.[0]).toBe(
+      'https://o4512109059768321.ingest.us.sentry.io/api/4512109539033088/envelope/',
+    );
+  });
+
+  it('rejects envelopes for another destination', async () => {
+    const upstream = vi.spyOn(globalThis, 'fetch');
     const response = await worker.fetch(
       new Request('https://viralab.space/api/sentry', {
         method: 'POST',
