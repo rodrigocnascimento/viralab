@@ -61,7 +61,6 @@ try {
 
   app.use(i18n);
   app.mount('#app');
-
 } catch (error) {
   Sentry.captureException(error);
   console.error('[viralab:web:bootstrap-error]', error);
