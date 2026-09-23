@@ -34,6 +34,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check Cloudflare types
+        if: hashFiles('apps/web/worker-configuration.d.ts') != ''
         run: pnpm --filter @viralab/web exec wrangler types --check
 
       - name: Lint
