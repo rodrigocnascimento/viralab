@@ -33,9 +33,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check Cloudflare types
-        if: hashFiles('apps/web/worker-configuration.d.ts') != ''
-        run: pnpm --filter @viralab/web exec wrangler types --check
+      - name: Generate or check Cloudflare types
+        shell: bash
+        run: |
+          if [[ -f apps/web/worker-configuration.d.ts ]]; then
+            pnpm --filter @viralab/web exec wrangler types --check
+          else
+            pnpm --filter @viralab/web exec wrangler types
+          fi
 
       - name: Lint
         run: pnpm lint
