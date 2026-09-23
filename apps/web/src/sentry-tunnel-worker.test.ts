@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import worker from './sentry-tunnel-worker';
 
 const env = {
@@ -13,6 +13,10 @@ const envelope = (dsn: string) =>
   `${JSON.stringify({ event_id: 'abc', dsn })}\n{"type":"event"}\n{}\n`;
 
 describe('web worker Sentry tunnel', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('forwards envelopes for the configured Sentry project', async () => {
     const upstream = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(null, { status: 200 }));
     const response = await worker.fetch(
