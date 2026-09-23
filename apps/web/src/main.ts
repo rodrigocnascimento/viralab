@@ -46,6 +46,7 @@ try {
   const app = createApp(Root);
   const sentryEnabled = initSentry(app);
   const sentryVueErrorHandler = app.config.errorHandler;
+  let appMounted = false;
 
   app.config.errorHandler = (error, instance, info) => {
     sentryVueErrorHandler?.(error, instance, info);
@@ -57,10 +58,14 @@ try {
       });
     }
     console.error('[viralab:web:vue-error]', { error, instance, info });
+    if (!appMounted) {
+      renderBootFailure();
+    }
   };
 
   app.use(i18n);
   app.mount('#app');
+  appMounted = true;
 } catch (error) {
   Sentry.captureException(error);
   console.error('[viralab:web:bootstrap-error]', error);
