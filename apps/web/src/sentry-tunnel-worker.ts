@@ -85,13 +85,22 @@ export default {
     }
 
     const assetResponse = await env.ASSETS.fetch(request);
+    const contentType = assetResponse.headers.get('content-type');
+
+    if (!contentType?.includes('text/html')) {
+      return assetResponse;
+    }
+
     const response = new Response(assetResponse.body, assetResponse);
+    const cacheControl = response.headers.get('cache-control');
 
     // Cloudflare Web Analytics' automatically injected browser beacon is
-    // commonly blocked by privacy/ad-blocking clients, producing noisy
-    // ERR_BLOCKED_BY_CLIENT console errors. ViralLab already has Sentry for
-    // browser observability and Cloudflare edge/Worker observability enabled.
-    response.headers.set('Cache-Control', 'public, no-transform');
+    // commonly blocked by privacy/ad-blocking clients. Preserve the asset
+    // binding's HTML cache policy while opting the response out of transforms.
+    response.headers.set(
+      'Cache-Control',
+      cacheControl ? `${cacheControl}, no-transform` : 'no-transform',
+    );
 
     return response;
   },
