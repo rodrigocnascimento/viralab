@@ -75,12 +75,12 @@ export default {
       return handleSentryTunnel(request, env);
     }
 
-    return (env.ASSETS as { fetch(request: Request): Promise<Response> }).fetch(request);
+    return env.ASSETS.fetch(request);
   },
 };
 
 interface Env {
-  ASSETS: unknown;
+  ASSETS: Fetcher;
   SENTRY_INGEST_ORIGIN: string;
   SENTRY_PROJECT_ID: string;
 }
