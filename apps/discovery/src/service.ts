@@ -1,4 +1,4 @@
-import type { ChannelIngestionQueueMessage, DiscoveryQueueMessage } from '@viralab/shared';
+import type { AnalyticsOpportunityQueueMessage, ChannelIngestionQueueMessage, DiscoveryQueueMessage } from '@viralab/shared';
 import { ProviderGatewayError, type DiscoveryProvider } from '@viralab/providers';
 
 export interface DiscoveryPersistence {
@@ -65,6 +65,7 @@ export const processDiscovery = async (
     channelFreshnessMs: number;
     ingestionClaimTtlMs: number;
     enqueueChannelIngestion?: (message: ChannelIngestionQueueMessage) => Promise<void>;
+    enqueueAnalytics?: (message: AnalyticsOpportunityQueueMessage) => Promise<void>;
     now?: () => Date;
     randomUUID?: () => string;
   },
@@ -141,7 +142,7 @@ export const processDiscovery = async (
       }
     }
 
-    await deps.persistence.upsertVideo({
+    const videoId = await deps.persistence.upsertVideo({
       provider: message.provider,
       providerId: item.video.providerId,
       channelId,
@@ -155,6 +156,29 @@ export const processDiscovery = async (
       discoveredAt,
     });
     videosProcessed += 1;
+    if (deps.enqueueAnalytics) {
+      const uuid = deps.randomUUID ?? crypto.randomUUID.bind(crypto);
+      try {
+        await deps.enqueueAnalytics({
+          version: 1,
+          type: 'analytics.opportunity.requested',
+          entityType: 'video',
+          entityId: videoId,
+          correlationId: message.correlationId,
+          sourceJobId: message.jobId,
+          requestedAt: discoveredAt.toISOString(),
+          reason: 'discovery',
+        });
+      } catch (error) {
+        console.error(JSON.stringify({
+          event: 'analytics.enqueue_failed',
+          entityType: 'video',
+          entityId: videoId,
+          correlationId: message.correlationId,
+          error: error instanceof Error ? error.message : 'unknown_error',
+        }));
+      }
+    }
   }
 
   return {
