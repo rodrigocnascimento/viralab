@@ -484,6 +484,19 @@ The implementation must explicitly define:
 
 Until these semantics are tested, do not advertise quota accounting as exact.
 
+### 11.4 Implemented v1 failure semantics
+
+The foundation implementation uses conservative daily reservations:
+
+- the scheduler atomically reserves the provider operation's expected quota cost before enqueueing;
+- a successful provider observation converts that reservation to consumed capacity;
+- a permanent provider rejection releases the reservation;
+- a retryable provider/infrastructure failure retains the reservation for the queue retry, preventing another scheduler invocation from spending the same capacity;
+- if all queue retries are exhausted and the message reaches the DLQ, the reservation remains conservative for the rest of that UTC quota day;
+- abandoned reservations therefore expire operationally at the next UTC quota date because admission only reads the current `quota_date` bucket.
+
+This intentionally prefers temporary under-utilization to exceeding the provider's daily budget. A future reservation-ledger model may provide finer-grained expiry/reconciliation if operational evidence justifies the extra state.
+
 ## 12. Analytics worker
 
 The first analytics worker does **not** introduce a new algorithm. It moves the existing v1 computation to the correct asynchronous boundary.
