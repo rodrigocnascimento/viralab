@@ -157,7 +157,6 @@ export const processDiscovery = async (
     });
     videosProcessed += 1;
     if (deps.enqueueAnalytics) {
-      const uuid = deps.randomUUID ?? crypto.randomUUID.bind(crypto);
       try {
         await deps.enqueueAnalytics({
           version: 1,
