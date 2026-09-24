@@ -85,6 +85,10 @@ export class DiscoveryRepository {
       .returning({ id: channels.id });
 
     if (!row) throw new Error('Channel upsert did not return a row');
+    await this.db.insert(observationSchedules).values({
+      entityType: 'channel', entityId: row.id, provider: input.provider, providerEntityId: input.providerId,
+      lifecycleState: 'DISCOVERED', lifecycleChangedAt: input.discoveredAt, updatedAt: input.discoveredAt,
+    }).onConflictDoNothing({ target: [observationSchedules.entityType, observationSchedules.entityId] });
     return row.id;
   }
 
@@ -140,6 +144,10 @@ export class DiscoveryRepository {
       .returning({ id: videos.id });
 
     if (!row) throw new Error('Video upsert did not return a row');
+    await this.db.insert(observationSchedules).values({
+      entityType: 'video', entityId: row.id, provider: input.provider, providerEntityId: input.providerId,
+      lifecycleState: 'DISCOVERED', lifecycleChangedAt: input.discoveredAt, updatedAt: input.discoveredAt,
+    }).onConflictDoNothing({ target: [observationSchedules.entityType, observationSchedules.entityId] });
     return row.id;
   }
 
@@ -386,7 +394,29 @@ export class ObservationScheduleRepository {
         gte(input.now, observationSchedules.nextObservationAt),
       ))
       .orderBy(observationSchedules.nextObservationAt)
-      .limit(input.limit);
+.limit(input.limit);
+  }
+
+  async claim(input: { id: string; now: Date; leaseOwner: string; leaseExpiresAt: Date }) {
+    const [row] = await this.db.update(observationSchedules).set({
+      leaseOwner: input.leaseOwner, leaseExpiresAt: input.leaseExpiresAt, updatedAt: input.now,
+    }).where(and(
+      eq(observationSchedules.id, input.id),
+      or(isNull(observationSchedules.leaseExpiresAt), lt(observationSchedules.leaseExpiresAt, input.now)),
+    )).returning();
+    return row ?? null;
+  }
+
+  async advance(input: { id: string; leaseOwner: string; nextObservationAt: Date; now: Date }): Promise<void> {
+    await this.db.update(observationSchedules).set({
+      nextObservationAt: input.nextObservationAt, leaseOwner: null, leaseExpiresAt: null, updatedAt: input.now,
+    }).where(and(eq(observationSchedules.id, input.id), eq(observationSchedules.leaseOwner, input.leaseOwner)));
+  }
+
+  async release(input: { id: string; leaseOwner: string; now: Date }): Promise<void> {
+    await this.db.update(observationSchedules).set({
+      leaseOwner: null, leaseExpiresAt: null, updatedAt: input.now,
+    }).where(and(eq(observationSchedules.id, input.id), eq(observationSchedules.leaseOwner, input.leaseOwner)));
   }
 }
 
