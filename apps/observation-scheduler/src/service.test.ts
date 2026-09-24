@@ -5,6 +5,18 @@ const due = (overrides: Partial<DueObservation> = {}): DueObservation => ({
   id: 'schedule-1', entityType: 'channel', entityId: '11111111-1111-4111-8111-111111111111',
   provider: 'youtube', providerEntityId: 'UC1', lifecycleState: 'ACTIVE', samplingIntervalSeconds: 21600,
   ...overrides,
+  it('requests only the configured bounded due-work batch', async () => {
+    const schedules = {
+      listDue: vi.fn().mockResolvedValue([]), claim: vi.fn(), advance: vi.fn(), release: vi.fn(),
+    };
+    await scheduleObservations({
+      schedules, quota: { reserve: vi.fn(), release: vi.fn() }, enqueue: vi.fn(),
+      limits: { channel: 10, video: 10 }, costs: { channel: 1, video: 1 },
+      batchSize: 37, leaseSeconds: 900, now: () => new Date('2026-09-24T12:00:00Z'),
+      randomUUID: () => '22222222-2222-4222-8222-222222222222',
+    });
+    expect(schedules.listDue).toHaveBeenCalledWith({ now: new Date('2026-09-24T12:00:00Z'), limit: 37 });
+  });
 });
 
 describe('scheduleObservations', () => {
