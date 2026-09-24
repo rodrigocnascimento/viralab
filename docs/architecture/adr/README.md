@@ -21,12 +21,13 @@ Accepted ADRs are not rewritten to hide history. If a decision changes materiall
 | [ADR-007](./007-analytics-instrumentation-boundaries.md) | Separate infrastructure observability, product analytics and Business Intelligence | Accepted |
 | [ADR-008](./008-dataset-first-provider-quota.md) | Separate product queries from provider discovery/observation quota | Accepted |
 | [ADR-009](./009-authentication-and-anonymous-access.md) | Establish authentication, anonymous identity and product quota boundaries | Accepted |
+| [ADR-010](./010-historical-observation-policy.md) | Define historical observation idempotency, lifecycle, adaptive sampling and persistent provider-budget policy | Accepted |
 
-## 2026-09 historical-data clarification
+## 2026-09 historical-data decision
 
-The accepted architecture now has concrete direction for one-hour observation buckets, adaptive sampling, ACTIVE/COLD/ARCHIVED dataset lifecycle, persistent configurable provider quota budgeting and asynchronous analytics.
+ADR-010 records the material historical-data constraints added after ADR-005/006/008: one-hour observation buckets, adaptive sampling, ACTIVE/COLD/ARCHIVED lifecycle and persistent workload-class provider budgeting. The original accepted ADRs remain unchanged so their decision history stays recoverable.
 
-These clarify ADR-005/006/008 without yet defining exact lifecycle thresholds or analytical formulas. The algorithm roadmap will be formalized separately after the documentation realignment; create additional ADRs if that work introduces a new durable architectural constraint.
+Exact lifecycle thresholds and analytical formulas remain intentionally open for the algorithm-roadmap formalization.
 
 ## When an ADR is required
 
