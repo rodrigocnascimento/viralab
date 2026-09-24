@@ -328,7 +328,11 @@ export class HistoricalObservationRepository {
         target: [channelObservations.channelId, channelObservations.observationBucket],
       }).returning({ id: channelObservations.id });
       await tx.update(observationSchedules).set({ lastObservedAt: input.observedAt, updatedAt: input.observedAt })
-        .where(and(eq(observationSchedules.entityType, 'channel'), eq(observationSchedules.entityId, input.channelId)));
+        .where(and(
+          eq(observationSchedules.entityType, 'channel'),
+          eq(observationSchedules.entityId, input.channelId),
+          or(isNull(observationSchedules.lastObservedAt), lte(observationSchedules.lastObservedAt, input.observedAt)),
+        ));
       return rows.length === 0 ? 'duplicate' : 'inserted';
     });
   }
@@ -360,7 +364,11 @@ export class HistoricalObservationRepository {
         target: [videoObservations.videoId, videoObservations.observationBucket],
       }).returning({ id: videoObservations.id });
       await tx.update(observationSchedules).set({ lastObservedAt: input.observedAt, updatedAt: input.observedAt })
-        .where(and(eq(observationSchedules.entityType, 'video'), eq(observationSchedules.entityId, input.videoId)));
+        .where(and(
+          eq(observationSchedules.entityType, 'video'),
+          eq(observationSchedules.entityId, input.videoId),
+          or(isNull(observationSchedules.lastObservedAt), lte(observationSchedules.lastObservedAt, input.observedAt)),
+        ));
       return rows.length === 0 ? 'duplicate' : 'inserted';
     });
   }
