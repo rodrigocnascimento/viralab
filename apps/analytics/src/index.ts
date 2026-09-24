@@ -4,7 +4,12 @@ import { processOpportunityAnalytics } from './service.js';
 
 type QueueMessage = { body: unknown; ack(): void; retry(): void };
 type QueueBatch = { messages: QueueMessage[] };
-type Env = { DATABASE_URL?: string; HYPERDRIVE?: { connectionString: string } };
+type QueueProducer<T> = { send(message: T): Promise<void> };
+type Env = {
+  DATABASE_URL?: string;
+  HYPERDRIVE?: { connectionString: string };
+  ANALYTICS_QUEUE: QueueProducer<import('@viralab/shared').AnalyticsOpportunityQueueMessage>;
+};
 
 const databaseUrl = (env: Env): string => {
   const value = env.HYPERDRIVE?.connectionString ?? env.DATABASE_URL;
@@ -26,6 +31,9 @@ export default {
         }
         try {
           const result = await processOpportunityAnalytics(parsed.data, persistence);
+          if (result.nextOffset !== undefined) {
+            await env.ANALYTICS_QUEUE.send({ ...parsed.data, offset: result.nextOffset });
+          }
           console.log(JSON.stringify({ event: 'analytics.completed', correlationId: parsed.data.correlationId, ...result }));
           queueMessage.ack();
         } catch (error) {
