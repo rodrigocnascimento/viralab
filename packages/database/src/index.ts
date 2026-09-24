@@ -283,6 +283,67 @@ export class DiscoveryRepository {
   }
 }
 
+export class HistoricalObservationRepository {
+  constructor(private readonly db: ViralabDatabase) {}
+
+  async persistChannel(input: {
+    channelId: string; providerId: string; title: string; description?: string | null;
+    thumbnailUrl?: string | null; publishedAt?: Date | null; customUrl?: string | null;
+    country?: string | null; defaultLanguage?: string | null; uploadsPlaylistId?: string | null;
+    subscriberCount?: bigint | null; viewCount?: bigint | null; videoCount?: bigint | null;
+    hiddenSubscriberCount?: boolean | null; observedAt: Date; observationBucket: Date;
+    source: string; jobId?: string | null;
+  }): Promise<'inserted' | 'duplicate'> {
+    return this.db.transaction(async (tx) => {
+      const [channel] = await tx.update(channels).set({
+        title: input.title, description: input.description ?? null, thumbnailUrl: input.thumbnailUrl ?? null,
+        publishedAt: input.publishedAt ?? null, customUrl: input.customUrl ?? null, country: input.country ?? null,
+        defaultLanguage: input.defaultLanguage ?? null, uploadsPlaylistId: input.uploadsPlaylistId ?? null,
+        subscriberCount: input.subscriberCount ?? null, viewCount: input.viewCount ?? null, videoCount: input.videoCount ?? null,
+        hiddenSubscriberCount: input.hiddenSubscriberCount ?? null, lastIngestedAt: input.observedAt, updatedAt: input.observedAt,
+      }).where(and(eq(channels.id, input.channelId), eq(channels.youtubeId, input.providerId)))
+        .returning({ id: channels.id });
+      if (!channel) throw new Error('Channel observation identity mismatch or channel not found');
+
+      const rows = await tx.insert(channelObservations).values({
+        channelId: input.channelId, observedAt: input.observedAt, observationBucket: input.observationBucket,
+        subscriberCount: input.subscriberCount ?? null, viewCount: input.viewCount ?? null, videoCount: input.videoCount ?? null,
+        source: input.source, jobId: input.jobId ?? null,
+      }).onConflictDoNothing({
+        target: [channelObservations.channelId, channelObservations.observationBucket],
+      }).returning({ id: channelObservations.id });
+      await tx.update(observationSchedules).set({ lastObservedAt: input.observedAt, updatedAt: input.observedAt })
+        .where(and(eq(observationSchedules.entityType, 'channel'), eq(observationSchedules.entityId, input.channelId)));
+      return rows.length === 0 ? 'duplicate' : 'inserted';
+    });
+  }
+
+  async persistVideo(input: {
+    videoId: string; providerId: string; viewCount?: bigint | null; likeCount?: bigint | null;
+    commentCount?: bigint | null; observedAt: Date; observationBucket: Date; source: string; jobId?: string | null;
+  }): Promise<'inserted' | 'duplicate'> {
+    return this.db.transaction(async (tx) => {
+      const [video] = await tx.update(videos).set({
+        viewCount: input.viewCount ?? null, likeCount: input.likeCount ?? null, commentCount: input.commentCount ?? null,
+        lastIngestedAt: input.observedAt, updatedAt: input.observedAt,
+      }).where(and(eq(videos.id, input.videoId), eq(videos.youtubeId, input.providerId)))
+        .returning({ id: videos.id });
+      if (!video) throw new Error('Video observation identity mismatch or video not found');
+
+      const rows = await tx.insert(videoObservations).values({
+        videoId: input.videoId, observedAt: input.observedAt, observationBucket: input.observationBucket,
+        viewCount: input.viewCount ?? null, likeCount: input.likeCount ?? null, commentCount: input.commentCount ?? null,
+        source: input.source, jobId: input.jobId ?? null,
+      }).onConflictDoNothing({
+        target: [videoObservations.videoId, videoObservations.observationBucket],
+      }).returning({ id: videoObservations.id });
+      await tx.update(observationSchedules).set({ lastObservedAt: input.observedAt, updatedAt: input.observedAt })
+        .where(and(eq(observationSchedules.entityType, 'video'), eq(observationSchedules.entityId, input.videoId)));
+      return rows.length === 0 ? 'duplicate' : 'inserted';
+    });
+  }
+}
+
 export class ObservationRepository {
   constructor(private readonly db: ViralabDatabase) {}
 
