@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import {
@@ -391,7 +391,7 @@ export class ObservationScheduleRepository {
     return this.db.select().from(observationSchedules)
       .where(and(
         or(eq(observationSchedules.lifecycleState, 'ACTIVE'), eq(observationSchedules.lifecycleState, 'COLD')),
-        gte(input.now, observationSchedules.nextObservationAt),
+        lte(observationSchedules.nextObservationAt, input.now),
       ))
       .orderBy(observationSchedules.nextObservationAt)
 .limit(input.limit);
