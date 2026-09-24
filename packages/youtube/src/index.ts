@@ -5,6 +5,8 @@ import {
   type ProviderChannelResult,
   type ProviderDiscoveryResult,
   type ProviderErrorKind,
+  type ProviderVideoMetricsResult,
+  type VideoProvider,
 } from '@viralab/providers';
 
 export const YOUTUBE_QUOTA_COST = {
@@ -116,7 +118,7 @@ const parseOptionalBigInt = (value: string | undefined, field: string): bigint |
   return BigInt(value);
 };
 
-export class YouTubeDataApiGateway implements DiscoveryProvider, ChannelProvider {
+export class YouTubeDataApiGateway implements DiscoveryProvider, ChannelProvider, VideoProvider {
   readonly provider = 'youtube' as const;
 
   constructor(
@@ -185,6 +187,19 @@ export class YouTubeDataApiGateway implements DiscoveryProvider, ChannelProvider
       items,
       quotaCost: YOUTUBE_QUOTA_COST.searchList + (items.length > 0 ? YOUTUBE_QUOTA_COST.videosList : 0),
       nextPageToken: payload.nextPageToken ?? null,
+    };
+  }
+
+  async getVideos(input: { providerVideoIds: string[] }): Promise<ProviderVideoMetricsResult> {
+    const ids = input.providerVideoIds.slice(0, 50);
+    if (ids.length === 0) return { videos: [], quotaCost: 0 };
+    const metrics = await this.getVideoMetrics(ids);
+    return {
+      videos: ids.flatMap((providerId) => {
+        const value = metrics.get(providerId);
+        return value ? [{ providerId, ...value }] : [];
+      }),
+      quotaCost: YOUTUBE_QUOTA_COST.videosList,
     };
   }
 
