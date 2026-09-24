@@ -1,7 +1,9 @@
 # Case 03 — Channel Ingestion
 
-Status: Design baseline
+Status: Implemented historical case record
 Date: 2026-09-17
+
+> This document records the Case 03 design and delivery scope. Historical observations, lifecycle/adaptive sampling and quota budgeting are later architectural concerns documented in `ARCHITECTURE.md` and ADR-005/006/008.
 
 ## Objective
 
@@ -76,7 +78,7 @@ Extend `channels` with nullable current-state enrichment fields:
 
 `youtube_id` remains unique. `first_discovered_at` is never overwritten. `last_discovered_at` remains discovery activity, not ingestion freshness. `last_ingestion_requested_at` is a short-lived claim used to deduplicate concurrent handoff attempts. The claim also stores the owning discovery job and the child ingestion job ID so a retry of the same discovery can resume publication instead of acknowledging an orphaned claim. Claim state is cleared after successful enrichment. `updated_at` advances on discovery/enrichment policy writes.
 
-Latest statistics live on `channels` as the current projection. ADR-006 remains authoritative: historical observations will be appended to snapshot tables later while `channels` remains current state.
+Latest statistics live on `channels` as the current projection. ADR-006 remains authoritative: historical observations are defined by the accepted target as append-only observation tables while `channels` remains current state.
 
 ## YouTube gateway
 
@@ -206,4 +208,4 @@ A production discovery can discover canonical entities, enqueue unique channel e
 
 ## Architectural decisions
 
-Case 03 applies ADR-001 through ADR-008, especially ADR-003/005 for queue/processing separation, ADR-006 for snapshot boundaries, ADR-007 for log/BI separation and ADR-008 for dataset-first querying, freshness and provider-quota admission.
+Case 03 was designed against ADR-001 through ADR-008, especially ADR-003/005 for queue/processing separation, ADR-006 for snapshot boundaries, ADR-007 for log/BI separation and ADR-008 for dataset-first querying, freshness and provider-quota admission.

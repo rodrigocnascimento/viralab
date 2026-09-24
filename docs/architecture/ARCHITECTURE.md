@@ -1,130 +1,138 @@
 # Viralab Architecture
 
-Status: Accepted for Case 01.2B
-Last updated: 2026-09-16
+Status: Accepted target architecture
+Last updated: 2026-09-23
 
 ## 1. Purpose
 
-Viralab is a YouTube Opportunity Intelligence platform. Its core hypothesis is that useful signals can be detected before a channel, video, or niche becomes obviously viral. The durable product asset is not a trending page: it is Viralab's own historical dataset and the intelligence derived from changes in that dataset over time.
+Viralab is a YouTube Opportunity Intelligence platform. Its core hypothesis is that useful signals can be detected before a channel, video or niche becomes obviously viral. The durable product asset is Viralab's own historical dataset and the intelligence derived from changes in that dataset over time.
 
-This document defines the target architecture beginning with Case 01.2B. It intentionally replaces the container-first Fastify + BullMQ + Redis deployment model introduced during the initial foundation with a Cloudflare-native event-driven runtime while retaining PostgreSQL as the system of record.
-
-The architecture optimizes for: very low fixed infrastructure cost during validation; reliable scheduled ingestion; asynchronous fan-out; explicit control of YouTube API quota; historical data integrity; idempotent processing; portability of the domain and data model; observability; and a credible scale-up path without an early rewrite of the product core.
+The production architecture is Cloudflare-native and event-driven while PostgreSQL remains the system of record. The architecture optimizes for low fixed infrastructure cost, bounded provider usage, historical-data integrity, idempotent asynchronous processing, explainable analytics, provider portability and the ability to evolve analytical models without rebuilding ingestion.
 
 ## 2. Architectural principles
 
-1. Historical data is the moat. Raw observations and normalized snapshots are first-class product data.
-2. PostgreSQL is the system of record. Cloudflare primitives coordinate execution; they do not become the canonical analytical database.
-3. The scheduler schedules; it does not perform expensive discovery work.
-4. Queues carry commands/references, not large domain state.
-5. Consumers are idempotent. Queue delivery is treated as at-least-once.
-6. Quota is a resource. Every YouTube API operation must have an understood quota cost and an execution budget.
-7. HTTP transport, scheduled execution, queue delivery, persistence, and YouTube access are adapters around application/domain code.
-8. Prefer managed/serverless infrastructure while the product hypothesis is being validated.
-9. Avoid provider coupling in business rules. Cloudflare-specific types should terminate at adapter boundaries.
-10. Observability and replayability are part of ingestion correctness, not optional production polish.
+1. **Historical data is the moat.** Canonical entities preserve current state; immutable observations preserve what Viralab knew at a point in time.
+2. **PostgreSQL is the system of record.** Cloudflare primitives coordinate execution but do not become the canonical analytical database.
+3. **Scheduling is policy, processing is execution.** Schedulers decide what work is due and admissible; workers perform provider and persistence work.
+4. **Ingestion records facts; analytics interprets facts.** Provider acquisition must not depend on an opportunity model succeeding.
+5. **Signals are not opportunities.** Reusable derived signals may feed lifecycle policy and multiple opportunity models.
+6. **Queues carry commands/references, not copied domain state.**
+7. **Consumers are idempotent.** Queue delivery is treated as at-least-once.
+8. **Provider quota is a shared resource.** Every external operation has understood cost/capacity and is admitted by a budget policy.
+9. **Product reads are dataset-first.** A normal Explorer/search read does not imply a provider call.
+10. **Infrastructure SDKs terminate at adapter boundaries.** Application/domain code must remain provider/runtime neutral where practical.
+11. **Observability and replayability are ingestion correctness concerns.**
+12. **Algorithms remain explainable and versioned.** A model change must not rewrite historical observations to fit the new model.
 
-## 3. System context
+## 3. Current production topology
 
 ```text
-Users
-  |
-  v
+Browser / Vue
+      |
+      v
 Cloudflare Edge
-  |
-  +--> Vue/Vite static assets
-  |
-  +--> HTTP Worker API ------------------------------+
-                                                     |
-Cron Trigger                                         |
-  |                                                  |
-  v                                                  |
-Discovery Scheduler --> Cloudflare Queues            |
-                         |                            |
-                         v                            |
-                   Queue Consumer                    |
-                         |                            |
-                         +--> YouTube Data API        |
-                         |                            |
-                         +--> Hyperdrive -------------+
+      |
+      +--> static web assets
+      |
+      +--> HTTP API ------------------------------+
+                                                   |
+                                                   v
+                                            PostgreSQL
+                                                   ^
+                                                   |
+HTTP API --> Discovery Queue --> Discovery Worker |
+                                  |                |
+                                  +--> YouTube     |
+                                  +--> channels/videos
+                                  +--> video statistics
                                   |
-                                  v
-                          Supabase PostgreSQL
+                                  +--> Channel Ingestion Queue
+                                                |
+                                                v
+                                      Channel Ingestion Worker
+                                                |
+                                                +--> YouTube
+                                                +--> channel current state
 ```
 
-External systems are deliberately few:
+The current opportunity model is computed from Viralab-owned current-state data and persisted for Explorer. Historical observation scheduling is accepted target architecture but is not yet implemented.
 
-- YouTube Data API: authoritative upstream source for discovery and channel/video observations.
-- Cloudflare: edge runtime, static delivery, schedules, queues, queue consumers, deployment and database connection acceleration/pooling through Hyperdrive.
-- Supabase: managed PostgreSQL only. Viralab does not require Supabase Auth, browser database access, PostgREST, or RLS for this architecture.
-- GitHub Actions: quality gates and deployment automation.
+External systems:
 
-## 4. Runtime topology
+- **YouTube Data API**: upstream source for discovery and observations.
+- **Cloudflare**: edge runtime, static delivery, schedules, queues, queue consumers, rate limiting and Hyperdrive.
+- **Supabase**: managed PostgreSQL and authentication provider. Browser database access/PostgREST/RLS are not the primary application data path.
+- **Sentry**: browser error/performance/replay telemetry through a first-party tunnel.
+- **GitHub Actions**: quality gates, migrations and deployment automation.
+
+## 4. Runtime boundaries
 
 ### 4.1 Web
 
-The Vue 3/Vite application is built into static assets and served at the Cloudflare edge. It communicates only with the Viralab HTTP API. The browser never receives PostgreSQL credentials and does not query Supabase directly.
+Vue 3/Vite is served at the Cloudflare edge. The browser communicates with Viralab HTTP APIs and uses Supabase Auth for identity/session establishment. Product data is accessed through Viralab APIs; the browser does not query product tables directly.
 
 ### 4.2 HTTP API
 
-The API executes in a Cloudflare Worker. The Worker entry point owns protocol concerns: request parsing, routing, validation boundary, authentication when introduced, response serialization, request correlation and mapping domain/application errors to HTTP responses.
+The API is a Cloudflare Worker. Its entry point owns protocol concerns: parsing, validation, authentication context, product quota/rate-limit boundaries, serialization, correlation and HTTP error mapping.
 
-Application services must not depend on Request, Response, ExecutionContext, Cloudflare Queue, Hyperdrive bindings, or Wrangler-specific configuration.
+Application services must not require Cloudflare `Request`, `Response`, `ExecutionContext`, Queue or Hyperdrive types.
 
-### 4.3 Scheduler
+### 4.3 Schedulers
 
-Cron Trigger invokes `scheduled()`. The scheduler should do bounded coordination work only: acquire/verify a logical run, decide what discovery work is due, enforce budget/policy, create work records when applicable, enqueue messages, and terminate.
+Cron-triggered schedulers perform bounded coordination only. A scheduler may select due work, evaluate freshness/lifecycle policy, enforce quota budget, create run/work metadata and enqueue commands.
 
-It must not scan an unbounded number of channels, recursively crawl YouTube, or calculate large analytical models inline.
+A scheduler does not crawl YouTube, perform large analytical computations or synchronously execute the work it schedules.
+
+The architecture distinguishes at least two scheduling concerns:
+
+```text
+Discovery Scheduler
+  -> selects bounded discovery work
+
+Observation Scheduler
+  -> selects due known entities
+  -> applies lifecycle + adaptive-sampling policy
+  -> applies quota budget
+  -> enqueues observation work
+```
+
+They may share infrastructure or code where appropriate, but their policies and work types are distinct.
 
 ### 4.4 Queues and consumers
 
-Cloudflare Queues replaces Redis/BullMQ for hosted asynchronous execution. Queue messages represent explicit work such as discovering a seed/query, refreshing a channel, refreshing recent videos, or calculating a derived signal.
+Cloudflare Queues is the hosted asynchronous transport. Messages contain stable identifiers, versioned work type, correlation metadata and minimal execution context.
 
-A message should contain stable identifiers and execution metadata rather than copied entities. Example envelope:
-
-```json
-{
-  "version": 1,
-  "type": "channel.refresh",
-  "jobId": "01J...",
-  "runId": "01J...",
-  "channelId": "UC...",
-  "attemptContext": {
-    "reason": "scheduled_refresh"
-  }
-}
-```
-
-Consumers validate the envelope before dispatch. Unknown versions/types fail explicitly rather than being silently ignored.
+Consumers validate envelopes before dispatch. Unknown versions/types fail explicitly. Provider/network/database failures follow classified retry policy. Acknowledgement occurs only after required persistence succeeds.
 
 ### 4.5 PostgreSQL and Hyperdrive
 
-Supabase PostgreSQL is the canonical datastore. Runtime Workers connect through Cloudflare Hyperdrive using a Worker-compatible PostgreSQL driver. Hyperdrive is an infrastructure adapter: application code should receive repository interfaces or database abstractions rather than a Hyperdrive binding.
+Supabase PostgreSQL is canonical. Runtime Workers connect through Hyperdrive using a Worker-compatible PostgreSQL driver. Migrations are controlled deployment operations and never execute implicitly on every Worker startup/request.
 
-Migrations are never executed by HTTP requests, queue consumers, or every Worker startup. They are a controlled deployment/CI operation.
+## 5. Source layout
 
-## 5. Target source layout
-
-The intended shape is:
+Current major boundaries:
 
 ```text
 apps/
-  web/                     Vue/Vite UI
+  web/                     Vue/Vite UI + static-assets/Sentry tunnel Worker
   api/                     Cloudflare HTTP Worker
-  discovery/               scheduled + queue Worker entry points
+  discovery/               discovery queue consumer
+  channel-ingestion/       channel enrichment queue consumer
+
 packages/
-  database/                schema, migrations, DB client/repositories
-  shared/                  env-independent shared contracts/utilities
-  youtube/                 YouTube gateway, quota model, DTO mapping
-  domain/                  optional extraction as domain complexity grows
+  auth/                    provider-neutral auth contracts/helpers
+  database/                Drizzle schema, migrations and persistence
+  providers/               provider-neutral provider ports/contracts
+  rate-limit/              application rate-limit boundary
+  shared/                  versioned API/queue/analytics contracts
+  youtube/                 YouTube adapter, normalization, error/quota metadata
 ```
 
-Case 01.2B may evolve toward this layout incrementally. A package should be created only when it has a real boundary; we should not manufacture packages solely to match the diagram.
+Future packages/apps should be created only when a real boundary exists. Do not manufacture a domain package merely to match an architectural diagram.
 
 ## 6. Application boundaries
 
-Use a ports-and-adapters direction of dependency:
+Dependency direction follows ports and adapters:
 
 ```text
 Cloudflare HTTP / Cron / Queue
@@ -132,137 +140,273 @@ Cloudflare HTTP / Cron / Queue
           v
    application services
           |
-     +----+----+
-     |         |
-     v         v
- repositories  YouTube port
-     |         |
-     v         v
-PostgreSQL   YouTube adapter
+     +----+----------+
+     |               |
+     v               v
+ persistence ports  provider ports
+     |               |
+     v               v
+ PostgreSQL       YouTube adapter
 ```
 
-The domain/application layer may define ports such as `ChannelRepository`, `VideoRepository`, `SnapshotRepository`, `DiscoveryRunRepository`, `OpportunityRepository`, `YouTubeGateway`, `Clock`, and `IdGenerator`. Adapters implement them.
+A useful rule is that provider/runtime concerns may be composed at Worker entry points but should not become application APIs.
 
-This is not a requirement to implement full Clean Architecture ceremony for every CRUD path. The rule is simpler: infrastructure SDKs must not become the domain API.
+The historical stage introduces an additional conceptual boundary:
+
+```text
+provider ingestion
+      |
+      v
+canonical state + immutable observations
+      |
+      v
+signal computation
+      |
+      +--> lifecycle policy
+      |
+      +--> opportunity models
+```
+
+Signal computation and opportunity modeling are conceptually separate even if an early implementation shares a Worker or transaction.
 
 ## 7. Data architecture
 
-The initial data model should distinguish identity/current metadata from observations over time.
+### 7.1 Canonical current state
 
-Likely entities:
+`channels` and `videos` hold stable identity, useful descriptive metadata and the latest known projection required by current product flows.
 
-- `channels`: stable YouTube channel identity and latest normalized metadata.
-- `channel_snapshots`: append-oriented observations such as subscriber/view/video counts at a point in time.
-- `videos`: stable YouTube video identity and latest normalized metadata.
-- `video_snapshots`: append-oriented observations such as view/like/comment counts at a point in time.
-- `discovery_runs`: lifecycle, trigger, budget, counters, status and diagnostics for discovery executions.
-- `discovery_candidates`: optional provenance linking a discovered channel/video to query, seed or strategy.
-- `opportunities`: materialized/recorded signals when the scoring model exists.
+Current-state rows may be updated idempotently. They are not a substitute for time-series history.
 
-Snapshots are not merely audit records. They are the raw material for velocity, acceleration, baseline, outlier and breakout calculations. Destructive updates must not erase historical observations required by later algorithms.
+### 7.2 Immutable observations
 
-Timestamps should be stored in UTC. External YouTube identifiers should have uniqueness constraints. Natural upstream IDs may be used as alternate keys while internal IDs remain available for relational stability.
+The accepted historical model uses append-oriented observations:
 
-## 8. Discovery pipeline
+- `channel_observations`: channel subscriber/view/video counters at observation time;
+- `video_observations`: video view/like/comment counters at observation time.
 
-A normal run is expected to follow this shape:
+"Observation" is the preferred current term; older documents may use "snapshot" for the same historical concept.
+
+Observations are facts, not model outputs. Normal ingestion never edits old observations to make history resemble current state.
+
+Observation idempotency uses a **one-hour observation bucket per entity**. Sampling cadence and idempotency granularity are intentionally separate concepts: an entity may normally be sampled every six hours while the one-hour bucket permits legitimate higher-frequency future observations without a schema redesign.
+
+All observation timestamps are UTC.
+
+### 7.3 Dataset lifecycle
+
+Known entities are not observed forever at the same priority. The accepted lifecycle is:
+
+```text
+DISCOVERED -> ACTIVE -> COLD -> ARCHIVED
+                ^                |
+                +----------------+
+                  rediscovery /
+                  renewed signal
+```
+
+ARCHIVED means "no routine provider spend", not deletion. Historical data remains queryable.
+
+Lifecycle policy v1 will be based on three signal families:
+
+- **Recency**: evidence of recent content/entity activity;
+- **Growth**: observed metric movement;
+- **Discovery**: renewed/repeated appearance through Viralab discovery.
+
+The exact measurable transition thresholds are intentionally deferred to the algorithm-roadmap formalization. Documentation must not invent weights or a single magic lifecycle score before that work.
+
+### 7.4 Adaptive sampling
+
+Accepted nominal cadence:
+
+```text
+strong/new signal -> 6h
+stable            -> 12h
+lower activity    -> 24h
+cold              -> 72h
+archived          -> no routine observation
+```
+
+These intervals are policy, not persistence schema. Lifecycle and sampling answer different questions:
+
+- lifecycle: should Viralab continue investing in this entity?
+- sampling: when should Viralab observe it again?
+
+### 7.5 Opportunities
+
+`opportunities` is a product projection/model output. It must record sufficient evidence and model version to explain why the opportunity existed.
+
+Changing an opportunity model must not mutate historical observations.
+
+## 8. Current discovery and ingestion flow
+
+```text
+POST discovery
+      |
+      v
+Discovery Queue
+      |
+      v
+Discovery Worker
+      |
+      +--> bounded provider discovery
+      +--> canonical channel/video upsert
+      +--> video statistics enrichment
+      +--> channel freshness/claim gate
+                    |
+                    v
+          Channel Ingestion Queue
+                    |
+                    v
+          Channel Ingestion Worker
+                    |
+                    +--> provider enrichment
+                    +--> canonical channel projection
+```
+
+Fan-out is bounded. Provider work is deduplicated/freshness-gated where applicable.
+
+The historical observation flow will reuse canonical identities but is a separate orchestration concern.
+
+## 9. Historical observation flow — accepted target
 
 ```text
 Cron
-  |
-  v
-Create discovery_run
-  |
-  v
-Select due strategies/seeds
-  |
-  v
-Estimate/reserve quota budget
-  |
-  v
-Enqueue bounded work
-  |
-  +------------------------------+
-                                 v
-                         Consume message
-                                 |
-                         Validate + dedupe
-                                 |
-                         Call YouTube API
-                                 |
-                         Normalize response
-                                 |
-                         Transactional persist
-                                 |
-                         Emit/enqueue next work
-                                 |
-                         Update run counters
+ |
+ v
+Observation Scheduler
+ |
+ +--> select due ACTIVE/COLD entities
+ +--> evaluate adaptive cadence
+ +--> enforce provider quota budget
+ |
+ v
+Observation Queue(s)
+ |
+ v
+Observation Consumer
+ |
+ +--> provider API
+ +--> update canonical current projection
+ +--> append immutable observation (1h bucket)
+ |
+ v
+Analytics/Signal Queue
+ |
+ v
+Signal Computation
+ |
+ +--> lifecycle policy
+ +--> opportunity models
 ```
 
-Fan-out must be bounded. A single response must not be able to recursively create unlimited queue traffic. Every strategy needs limits such as max pages, max candidates, refresh age, run budget and/or depth.
+Analytics is asynchronous relative to provider ingestion. A scoring/model failure must not invalidate a successfully acquired observation.
 
-## 9. Idempotency and delivery semantics
+## 10. Idempotency and delivery semantics
 
-Queue delivery is treated as at-least-once. The system must remain correct when a message is delivered more than once or a consumer fails after the external call but before acknowledgement.
+Queue delivery is at-least-once. Correctness relies on:
 
-Mechanisms include:
-
-- stable `jobId`/deduplication keys where useful;
+- stable job/correlation identifiers;
 - database unique constraints as the final integrity boundary;
-- upsert for stable entities;
-- snapshot uniqueness based on an intentional observation bucket/key rather than accidental duplicate insertion;
-- transactions for state changes that must be atomic;
+- upsert for canonical entities;
+- one-hour observation uniqueness per entity;
+- atomic freshness/claim transitions where required;
+- transactions for coupled persistence state;
 - acknowledgement only after required persistence succeeds;
-- retries only for errors classified as retryable.
+- retries only for retryable classifications.
 
 Exactly-once execution is not assumed.
 
-## 10. YouTube quota architecture
+## 11. Provider quota architecture
 
-YouTube quota can become a tighter constraint than compute. Therefore quota accounting belongs in the architecture.
+Product reads and provider calls are separate.
 
-Viralab uses a **dataset-first query model**. A product search performed by a user queries Viralab-owned data and does not imply a YouTube request. Provider discovery and refresh are separate, asynchronous operations admitted by freshness, deduplication, entitlement and quota policy.
+```text
+Product query
+  -> Viralab dataset
+  -> no provider call by default
 
-This separation is deliberate: users may perform many exploratory queries, while the platform must preserve scarce provider capacity for autonomous discovery, paid/on-demand refresh, scheduled monitoring and operational reserve. UI-query volume and provider-call volume are therefore separate metrics.
+Provider work
+  -> admission/freshness/lifecycle policy
+  -> quota budget
+  -> queue
+  -> provider adapter
+```
 
-The YouTube adapter exposes operations with known cost metadata rather than allowing arbitrary HTTP calls throughout the codebase. Current provider policy must model operation cost separately from bucket capacity: `search.list` costs 1 unit but belongs to a dedicated Search Queries bucket with a default 100 calls/day, while `channels.list` costs 1 unit from the general quota pool.
+The provider adapter owns operation-specific cost/capacity metadata; orchestration owns why work should be admitted.
 
-Fresh stored data must be reused. Equivalent stale requests should converge on shared provider work rather than consume quota once per user. Pricing/plan entitlements live above the provider gateway; free users can consume the shared Viralab dataset without receiving unbounded provider quota.
+The accepted target introduces persistent **quota budgeting** with runtime-configurable allocations for at least:
 
-A discovery run should have a configured budget and record estimated/actual operation counts. On quota exhaustion or upstream throttling, the system should stop creating unnecessary work and preserve the run state for diagnosis. We should prefer incremental refresh from our own known dataset over repeatedly rediscovering the same universe.
+- discovery;
+- channel observations;
+- video observations;
+- operational reserve.
 
-ADR-008 defines the dataset-first and shared-quota policy in detail.
+The exact environment-variable names and percentage defaults are implementation details. Allocations must be validated and must not rely only on Worker memory: a restart cannot reset already-consumed daily budget.
 
-## 11. Failure handling
+Provider operation cost and provider bucket capacity are distinct concepts and must remain modeled separately.
+
+## 12. Analytical model boundaries
+
+The current production model is **video outlier v1**. It intentionally uses a lifetime channel baseline and remains active while historical observations accumulate.
+
+Historical observations are intended to support reusable derived signals before they are composed into opportunity models. Candidate signal families identified for later formalization include:
+
+- absolute and relative growth;
+- time-normalized velocity;
+- acceleration;
+- discovery frequency/rediscovery;
+- temporal and age-normalized baselines;
+- robust baselines resistant to prior viral outliers;
+- momentum and decay.
+
+Candidate composite models include video-outlier v2, breakout-channel detection and niche momentum.
+
+These names describe the analytical direction only. **No formula, threshold, weighting or implementation commitment is established here.** The algorithm roadmap will be formalized in a separate follow-up after the documentation realignment.
+
+## 13. Current video-outlier v1
+
+The existing model remains intentionally simple:
+
+```text
+baseline_views = channel_lifetime_views / channel_video_count
+multiplier     = observed_video_views / baseline_views
+candidate      = multiplier >= 1.5
+```
+
+The score is a bounded logarithmic transformation of multiplier and confidence grows with the channel's published-video sample size. The implementation and Case 04/05 document are the source of truth for the exact v1 formula.
+
+This model is not velocity, recent growth, a 7d/30d trend or an age-normalized comparison. UI/product copy must not imply otherwise.
+
+## 14. Failure handling
 
 Failures are classified at least as:
 
-- validation/permanent: malformed message, unsupported version, invalid identifier; do not retry indefinitely;
-- upstream retryable: transient YouTube/network/server error; retry with platform backoff;
-- quota/policy: budget exhausted or quota unavailable; stop/defer intentionally;
-- database transient: connection/temporary database error; retry;
-- integrity/conflict: handle idempotently or fail with actionable diagnostics;
-- programmer error: surface loudly and preserve correlation information.
+- validation/permanent;
+- upstream retryable;
+- quota/policy deferral;
+- database transient;
+- integrity/conflict/idempotent no-op;
+- programmer/model error.
 
-Dead-letter handling should be configured once message workflows are introduced. A dead-letter message must retain enough identifiers to trace its run and original work without embedding sensitive credentials or huge payloads.
+Historical analytics adds an important isolation rule: provider acquisition/persistence success is independent from downstream analytical success. Failed analytics can be replayed from owned observations without consuming provider quota again.
 
-## 12. Observability
+## 15. Observability
 
-Every invocation should be traceable by structured fields such as `requestId`, `runId`, `jobId`, `messageType`, `channelId`/`videoId` when applicable, duration, outcome and error classification.
+Structured telemetry should correlate request/run/job/message/entity identifiers, provider operation, duration, outcome and error classification.
 
-Operational counters worth persisting or emitting include: discovery runs started/completed/failed, queue messages produced/processed/retried/dead-lettered, YouTube calls by operation, quota budget consumed, candidates discovered, channels/videos refreshed, snapshots written, duplicate/no-op observations and processing latency.
+Relevant counters include product queries, provider calls by operation/source, quota budget consumed/remaining, queue retries/DLQ, canonical entities discovered/refreshed, observations written/deduplicated, lifecycle transitions, signal jobs and opportunity model outcomes.
 
-Do not log API keys, database URLs, authorization headers, full environment objects, or raw payloads by default.
+Operational logs are not the product dataset and are not a substitute for durable observations or BI events.
 
-## 13. Security and access model
+## 16. Security and access model
 
-The browser talks to Viralab API only. PostgreSQL is not a client-side integration. Supabase RLS is therefore not the primary authorization boundary and is not required for the MVP runtime.
+Supabase Auth provides identity. The browser sends access tokens to Viralab APIs. Application authorization uses provider-neutral auth context; RLS is not the primary Worker API authorization boundary.
 
-Secrets are stored as platform/GitHub secrets as appropriate and never committed. Production database access should use TLS. API input and queue envelopes are validated at ingress. CORS is explicit. Administrative/debug endpoints must not expose environment or database details.
+Security rate limiting, anonymous product allowance, authenticated entitlements and provider quota are separate controls. Explorer reads Viralab-owned data and never consumes YouTube quota directly.
 
-If direct Supabase client access is introduced in the future, that is a new trust boundary and requires a separate architecture/security decision, including RLS.
+Secrets remain in platform/GitHub secret stores and must not appear in logs or committed configuration.
 
-## 14. Deployment architecture
+## 17. Deployment architecture
 
 Pull request:
 
@@ -270,59 +414,23 @@ Pull request:
 checkout -> install -> lint -> typecheck -> test -> build
 ```
 
-Main after merge:
+Production deployment performs controlled migrations before code that requires them and deploys consumers before producers when introducing new queue contracts. Destructive schema changes should follow expand/migrate/contract when availability/data safety requires it.
 
-```text
-quality gates
-   |
-   +--> database migration (controlled, once)
-   |
-   +--> deploy Worker(s)/static assets
-   |
-   +--> smoke checks
-```
+## 18. Local development and testing
 
-A failed migration prevents deployment of code requiring it. Destructive schema changes should follow expand/migrate/contract when availability/data safety requires it.
+Wrangler provides local Worker/event runtime; PostgreSQL may run through Docker Compose. CI does not require real provider credentials.
 
-The current Docker production targets become non-canonical after the Cloudflare migration. They may be removed once the Worker runtime is proven, rather than maintained as a second deployment path with no owner.
+Tests are layered:
 
-## 15. Local development
+- pure unit tests for normalization, scoring, lifecycle/quota policy and contracts;
+- repository integration tests where PostgreSQL semantics matter;
+- Worker/adapter tests for HTTP/queue/scheduled entry points;
+- manual provider smoke tests only when real upstream behavior must be verified.
 
-Local development should preserve fast feedback without requiring paid infrastructure. Wrangler provides the Worker/event runtime locally. PostgreSQL may remain local through Docker Compose for development/tests. Hosted integration can use a non-production Supabase project when needed.
+Historical algorithms should be deterministic over stored observations so they can be tested/replayed without provider access.
 
-Tests should be layered:
+## 19. Evolution rule
 
-- pure unit tests for scoring, normalization, quota and policy logic;
-- repository integration tests against PostgreSQL where database semantics matter;
-- Worker/adapter tests for HTTP, scheduled and queue handlers;
-- a small number of deployment smoke tests.
+Case documents are historical implementation records. Accepted ADRs record durable constraints. This document describes the current whole-system architecture and accepted near-term target.
 
-## 16. Scale path
-
-The architecture intentionally permits incremental scaling:
-
-1. increase Worker/Queue paid limits without changing domain code;
-2. tune batching/concurrency and discovery policy;
-3. scale PostgreSQL/Hyperdrive;
-4. partition high-volume snapshots when measurements justify it;
-5. introduce analytical replicas/warehouse only when PostgreSQL workloads demonstrate the need;
-6. split queue types/consumers by workload if noisy-neighbor effects appear;
-7. move a compute-heavy algorithm to a dedicated runtime behind the same application boundary if Worker CPU characteristics become unsuitable.
-
-We should not introduce Kafka, Kubernetes, a warehouse, Redis, or a permanent worker fleet based on hypothetical scale.
-
-## 17. Explicit non-goals for Case 01.2B
-
-- implementing the YouTube discovery algorithm itself;
-- final breakout/outlier scoring;
-- authentication/billing;
-- direct browser-to-Supabase data access;
-- multi-region database architecture;
-- data warehouse/lake;
-- real-time UI updates;
-- generalized workflow engine;
-- Cloudflare Workflows unless a concrete orchestration need emerges.
-
-## 18. Case 01.2B completion criteria
-
-Case 01.2B is complete when the repository has a reproducible Cloudflare runtime foundation, the web/API can be built for the target runtime, scheduled and queue event contracts have a tested skeleton, PostgreSQL access is designed/configured through the chosen adapter and Hyperdrive, obsolete BullMQ/Redis runtime dependencies are removed, schema migration strategy is established, CI remains green, deployment configuration is documented, and no YouTube business discovery logic has leaked prematurely into the infrastructure case.
+When an architectural decision changes materially, create/supersede an ADR rather than silently rewriting history. When implementation catches up with an accepted target, update this document from "target" to "current" without changing the underlying decision history.

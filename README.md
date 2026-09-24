@@ -2,34 +2,67 @@
 
 Viralab is a YouTube Opportunity Intelligence platform focused on detecting promising channels, videos and niches before their growth becomes obvious.
 
-The repository now includes the **Case 02 — YouTube Discovery** vertical slice on top of the accepted Cloudflare-native architecture.
+The current MVP is dataset-first: provider discovery and ingestion build Viralab-owned data in PostgreSQL, while product reads such as Explorer query that dataset without proxying YouTube.
+
+## Current capabilities
+
+- asynchronous YouTube video discovery;
+- canonical channel and video persistence;
+- asynchronous channel enrichment;
+- video statistics enrichment;
+- explainable video-outlier model v1 and persisted opportunities;
+- dataset-only Explorer API and Vue UI;
+- Supabase Auth foundation plus anonymous Explorer allowance;
+- Cloudflare-native queues, Workers, Hyperdrive and production delivery;
+- Sentry browser monitoring through a first-party tunnel.
+
+Historical observations, adaptive sampling, dataset lifecycle and asynchronous historical analytics are the next architectural stage. Their accepted direction is documented in `docs/architecture/ARCHITECTURE.md`; the detailed algorithm roadmap will be formalized separately after this documentation realignment.
 
 ## Current runtime
 
 ```text
-Vue/Vite web
-    |
-    v
-Cloudflare HTTP Worker (apps/api)
-    |
-    +--> PostgreSQL / Supabase through Hyperdrive
-    +--> Cloudflare Queue: viralab-discovery
-                         |
-                         v
-                 apps/discovery
-                         |
-                         +--> YouTube Data API
-                         +--> PostgreSQL / Supabase through Hyperdrive
+Browser / Vue 3 + Vite
+        |
+        v
+Cloudflare Edge / HTTP Worker (apps/api)
+        |
+        +--> PostgreSQL / Supabase through Hyperdrive
+        |
+        +--> viralab-discovery queue
+                    |
+                    v
+             apps/discovery
+                    |
+                    +--> YouTube Data API
+                    +--> canonical channels/videos
+                    +--> video statistics
+                    |
+                    +--> viralab-channel-ingestion queue
+                                  |
+                                  v
+                         apps/channel-ingestion
+                                  |
+                                  +--> YouTube Data API
+                                  +--> canonical channel enrichment
+                                  |
+                                  v
+                         PostgreSQL opportunities
+                                  |
+                                  v
+                         GET /api/v1/opportunities
+                                  |
+                                  v
+                              Explorer
 ```
 
-PostgreSQL is the system of record. Cloudflare Queues coordinates asynchronous work. Redis/BullMQ and TypeORM are no longer part of the target runtime.
+PostgreSQL is the system of record. Cloudflare Queues coordinates asynchronous work. Redis/BullMQ and TypeORM belong only to the historical foundation and are not part of the target runtime.
 
 ## Requirements
 
 - Node.js 22+
 - pnpm 10+
 - Docker with Docker Compose for local PostgreSQL
-- a YouTube Data API v3 key for real discovery smoke tests
+- a YouTube Data API v3 key for real provider smoke tests
 - Wrangler/Cloudflare account when exercising hosted queue/Hyperdrive bindings
 
 ## Install and local database
@@ -41,21 +74,29 @@ docker compose up -d
 pnpm db:migrate
 ```
 
-`docker-compose.yml` runs PostgreSQL 16 only. Hosted production uses Supabase PostgreSQL; Workers should connect through Cloudflare Hyperdrive.
+`docker-compose.yml` runs PostgreSQL 16 for local development. Hosted production uses Supabase PostgreSQL; Workers connect through Cloudflare Hyperdrive.
 
 ## Workspace
 
 ```text
 apps/
-  api/          Cloudflare HTTP Worker
-  discovery/    Cloudflare Queue consumer
-  web/          Vue 3 + Vite application
+  api/                 Cloudflare HTTP Worker
+  channel-ingestion/   Cloudflare channel-ingestion queue consumer
+  discovery/           Cloudflare discovery queue consumer
+  web/                 Vue 3 + Vite application and Sentry tunnel Worker
+
 packages/
-  database/     Drizzle schema, migrations and repositories
-  shared/       versioned API/queue/analytics contracts
-  youtube/      YouTube Data API gateway, mapping, quota/error policy
+  auth/                provider-neutral authentication contracts/helpers
+  database/            Drizzle schema, migrations and persistence adapters
+  providers/           provider-neutral discovery/channel gateway contracts
+  rate-limit/          rate-limit application boundary
+  shared/              versioned API/queue/analytics contracts
+  youtube/             YouTube Data API adapter, mapping, quota/error policy
+
 docs/
-  architecture/
+  architecture/        architecture, ADRs and implemented case records
+  operations/          operational runbooks
+  product/             product-facing implementation decisions
 ```
 
 ## Commands
@@ -70,11 +111,11 @@ pnpm db:migrate   # apply Drizzle migrations
 pnpm db:generate  # generate migrations from schema changes
 ```
 
-CI never needs a live YouTube API key. Provider access is isolated behind the `@viralab/youtube` gateway and mocked in automated tests.
+CI does not require a live YouTube API key. Provider access is isolated behind `@viralab/providers` and `@viralab/youtube` and is mocked in automated tests.
 
-## Case 02 discovery contract
+## Current product flow
 
-Submit a search intent with:
+A discovery request is accepted asynchronously:
 
 ```http
 POST /api/v1/discoveries
@@ -83,40 +124,53 @@ Content-Type: application/json
 {"query":"homelab"}
 ```
 
-The API returns `202 Accepted` after recording the semantic `search_performed` BI event and enqueueing versioned discovery work:
+Discovery performs bounded provider work, persists canonical entities and current statistics, and hands stale/new channels to the dedicated channel-ingestion queue. Current opportunity scoring uses an intentionally simple lifetime channel baseline; it is explicitly not a recent-growth or velocity model.
 
-```json
-{
-  "id": "<job-uuid>",
-  "status": "accepted",
-  "query": "homelab"
-}
+Explorer reads persisted opportunities only:
+
+```http
+GET /api/v1/opportunities
 ```
 
-The queue consumer performs one bounded YouTube `search.list` call, normalizes provider results and upserts canonical `channels` and `videos`. Unique constraints on YouTube IDs make duplicate queue delivery safe. A repeated intentional search still creates another `search_performed` event because it is a new business action.
+The browser does not query Supabase directly and product reads do not imply provider calls.
 
-## YouTube quota discipline
+## Provider quota discipline
 
-Case 02 explicitly models `search.list` as a 100-unit operation. Discovery is bounded to at most 50 results per job and does not recursively paginate. Known entities are not refreshed through repeated search; later ingestion cases use ID-based endpoints for refresh and historical observations.
+Provider quota is a shared platform resource. Product-query volume and provider-call volume are separate concerns.
 
-Provider errors are classified into retryable rate/provider failures versus permanent invalid/auth/quota failures so Cloudflare Queue retry behavior does not accidentally burn quota.
+The current implementation models provider operation costs and bounded work. The target architecture adds persistent quota budgeting across discovery, channel observations, video observations and operational reserve. Budget allocation will be runtime-configurable rather than embedded in scoring or provider adapters.
 
-## Real-data smoke test
+## Historical-data direction
 
-1. Provision/run PostgreSQL and apply `pnpm db:migrate`.
-2. Create the `viralab-discovery` Cloudflare Queue.
-3. Configure the same Hyperdrive binding for `apps/api` and `apps/discovery`, or use `DATABASE_URL` for local Worker development.
-4. Set `YOUTUBE_API_KEY` as a secret on the discovery Worker.
-5. Start/deploy both Workers.
-6. `POST /api/v1/discoveries` with `{"query":"homelab"}`.
-7. Confirm a `202` response, queue consumption and `discovery.persisted` structured log.
-8. Query `channels`, `videos` and `analytics_events` in PostgreSQL.
-9. Submit `homelab` again and verify channel/video `youtube_id` values remain unique while a second `search_performed` event is appended.
+The next data stage separates canonical current state from immutable time-series observations:
+
+```text
+channels/videos
+      |
+      v
+Observation Scheduler
+      |
+      v
+Observation Queue(s)
+      |
+      v
+channel_observations / video_observations
+      |
+      v
+asynchronous signal computation
+      |
+      +--> lifecycle policy
+      +--> opportunity models
+```
+
+Accepted design decisions include a one-hour observation idempotency bucket, adaptive sampling with nominal 6h -> 12h -> 24h -> 72h intervals, and dataset lifecycle states ACTIVE/COLD/ARCHIVED driven initially by Recency, Growth and Discovery signals. These are architectural decisions, not claims that the corresponding runtime has already been implemented.
+
+The existing video-outlier v1 remains the production model while historical data accumulates. A separate follow-up will formalize the algorithm roadmap for velocity, acceleration, temporal baselines, momentum/decay, breakout channels and niche intelligence.
 
 ## Health contract
 
 `GET /health` returns `200` when PostgreSQL is reachable and `503` with a degraded status when it is not.
 
-## Architecture
+## Documentation
 
-Start with `docs/architecture/ARCHITECTURE.md` and the accepted ADRs under `docs/architecture/adr/`. The detailed Case 02 design is in `docs/architecture/case-02-youtube-discovery.md`.
+Start with `docs/architecture/ARCHITECTURE.md`. Accepted decisions are indexed under `docs/architecture/adr/README.md`. Case documents record the scope and rationale of delivered vertical slices and should be read as historical implementation records rather than as the current whole-system description.

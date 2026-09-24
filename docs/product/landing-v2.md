@@ -36,3 +36,14 @@ Keep cream/paper/chocolate/caramel. Green represents positive acceleration; red 
 - disappearing mobile navigation
 - missing social image
 - fake SPA Privacy/Terms destinations
+
+
+## Signal-language accuracy
+
+Product/marketing language must track implemented analytical semantics.
+
+The current production opportunity model is a lifetime-baseline video outlier model. Until historical algorithms are implemented, public copy must not imply that Explorer currently computes temporal acceleration, recent velocity, age-normalized baselines, breakout probability or niche momentum.
+
+Terms such as **acceleration**, **decay**, **breakout channels** and **niche momentum** may describe the product direction only when clearly framed as future methodology/capability rather than as evidence already calculated by the live v1 model.
+
+When historical models ship, update landing methodology copy and examples together with the corresponding versioned model documentation.
