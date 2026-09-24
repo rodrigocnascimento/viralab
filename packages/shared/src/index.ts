@@ -69,6 +69,11 @@ export const observationQueueMessageSchema = z.object({
   correlationId: z.uuid(),
   requestedAt: z.iso.datetime(),
   source: z.enum(['scheduler', 'manual', 'discovery']),
+  quota: z.object({
+    date: z.iso.date(),
+    workloadClass: z.enum(['channel_observation', 'video_observation']),
+    units: z.number().int().positive(),
+  }).optional(),
 });
 
 export const analyticsOpportunityQueueMessageSchema = z.object({
