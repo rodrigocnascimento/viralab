@@ -1,5 +1,5 @@
 import { ProviderGatewayError, type ChannelProvider } from '@viralab/providers';
-import type { ChannelIngestionQueueMessage } from '@viralab/shared';
+import type { AnalyticsOpportunityQueueMessage, ChannelIngestionQueueMessage } from '@viralab/shared';
 
 export interface ChannelIngestionPersistence {
   enrichChannel(input: {
@@ -34,6 +34,7 @@ export const processChannelIngestion = async (
   deps: {
     provider: ChannelProvider;
     persistence: ChannelIngestionPersistence;
+    enqueueAnalytics?: (message: AnalyticsOpportunityQueueMessage) => Promise<void>;
     onProviderRequestCompleted?: (input: {
       provider: ChannelIngestionQueueMessage['provider'];
       operation: string;
@@ -78,6 +79,29 @@ export const processChannelIngestion = async (
     hiddenSubscriberCount: result.channel.hiddenSubscriberCount,
     ingestedAt,
   });
+
+  if (deps.enqueueAnalytics) {
+    try {
+      await deps.enqueueAnalytics({
+        version: 1,
+        type: 'analytics.opportunity.requested',
+        entityType: 'channel',
+        entityId: message.channelId,
+        correlationId: message.correlationId,
+        sourceJobId: message.jobId,
+        requestedAt: ingestedAt.toISOString(),
+        reason: 'channel_enrichment',
+      });
+    } catch (error) {
+      console.error(JSON.stringify({
+        event: 'analytics.enqueue_failed',
+        entityType: 'channel',
+        entityId: message.channelId,
+        correlationId: message.correlationId,
+        error: error instanceof Error ? error.message : 'unknown_error',
+      }));
+    }
+  }
 
   return {
     provider: message.provider,
