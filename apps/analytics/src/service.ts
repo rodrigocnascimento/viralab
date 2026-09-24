@@ -56,21 +56,15 @@ export const processOpportunityAnalytics = async (
   message: AnalyticsOpportunityQueueMessage,
   persistence: OpportunityAnalyticsPersistence,
   now: () => Date = () => new Date(),
-): Promise<{ processed: number }> => {
+): Promise<{ processed: number; nextOffset?: number }> => {
   if (message.entityType === 'video') {
     await recomputeVideoOutlier(message.entityId, now(), persistence);
     return { processed: 1 };
   }
 
-  let offset = 0;
-  let processed = 0;
+  const offset = message.offset ?? 0;
   const pageSize = 100;
-  while (true) {
-    const ids = await persistence.listVideoIdsForChannel(message.entityId, pageSize, offset);
-    for (const id of ids) await recomputeVideoOutlier(id, now(), persistence);
-    processed += ids.length;
-    if (ids.length < pageSize) break;
-    offset += ids.length;
-  }
-  return { processed };
+  const ids = await persistence.listVideoIdsForChannel(message.entityId, pageSize, offset);
+  for (const id of ids) await recomputeVideoOutlier(id, now(), persistence);
+  return { processed: ids.length, nextOffset: ids.length === pageSize ? offset + ids.length : undefined };
 };
