@@ -74,3 +74,20 @@ export interface ChannelProvider {
   readonly provider: ContentProvider;
   getChannel(input: { providerChannelId: string }): Promise<ProviderChannelResult>;
 }
+
+export type ProviderVideoMetrics = {
+  providerId: string;
+  viewCount: bigint | null;
+  likeCount: bigint | null;
+  commentCount: bigint | null;
+};
+
+export type ProviderVideoMetricsResult = {
+  videos: ProviderVideoMetrics[];
+  quotaCost: number;
+};
+
+export interface VideoProvider {
+  readonly provider: ContentProvider;
+  getVideos(input: { providerVideoIds: string[] }): Promise<ProviderVideoMetricsResult>;
+}
