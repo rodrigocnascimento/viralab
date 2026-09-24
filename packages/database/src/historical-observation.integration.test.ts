@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDatabase, ObservationRepository, ProviderQuotaRepository } from './index.js';
-import { channelObservations, channels, providerQuotaUsage, videoObservations, videos } from './schema.js';
+import { channels, providerQuotaUsage, videoObservations, videos } from './schema.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 const suite = databaseUrl ? describe : describe.skip;
