@@ -309,9 +309,16 @@ export class HistoricalObservationRepository {
         defaultLanguage: input.defaultLanguage ?? null, uploadsPlaylistId: input.uploadsPlaylistId ?? null,
         subscriberCount: input.subscriberCount ?? null, viewCount: input.viewCount ?? null, videoCount: input.videoCount ?? null,
         hiddenSubscriberCount: input.hiddenSubscriberCount ?? null, lastIngestedAt: input.observedAt, updatedAt: input.observedAt,
-      }).where(and(eq(channels.id, input.channelId), eq(channels.youtubeId, input.providerId)))
-        .returning({ id: channels.id });
-      if (!channel) throw new Error('Channel observation identity mismatch or channel not found');
+      }).where(and(
+        eq(channels.id, input.channelId),
+        eq(channels.youtubeId, input.providerId),
+        or(isNull(channels.lastIngestedAt), lte(channels.lastIngestedAt, input.observedAt)),
+      )).returning({ id: channels.id });
+      if (!channel) {
+        const [existing] = await tx.select({ id: channels.id }).from(channels)
+          .where(and(eq(channels.id, input.channelId), eq(channels.youtubeId, input.providerId))).limit(1);
+        if (!existing) throw new Error('Channel observation identity mismatch or channel not found');
+      }
 
       const rows = await tx.insert(channelObservations).values({
         channelId: input.channelId, observedAt: input.observedAt, observationBucket: input.observationBucket,
@@ -334,9 +341,16 @@ export class HistoricalObservationRepository {
       const [video] = await tx.update(videos).set({
         viewCount: input.viewCount ?? null, likeCount: input.likeCount ?? null, commentCount: input.commentCount ?? null,
         lastIngestedAt: input.observedAt, updatedAt: input.observedAt,
-      }).where(and(eq(videos.id, input.videoId), eq(videos.youtubeId, input.providerId)))
-        .returning({ id: videos.id });
-      if (!video) throw new Error('Video observation identity mismatch or video not found');
+      }).where(and(
+        eq(videos.id, input.videoId),
+        eq(videos.youtubeId, input.providerId),
+        or(isNull(videos.lastIngestedAt), lte(videos.lastIngestedAt, input.observedAt)),
+      )).returning({ id: videos.id });
+      if (!video) {
+        const [existing] = await tx.select({ id: videos.id }).from(videos)
+          .where(and(eq(videos.id, input.videoId), eq(videos.youtubeId, input.providerId))).limit(1);
+        if (!existing) throw new Error('Video observation identity mismatch or video not found');
+      }
 
       const rows = await tx.insert(videoObservations).values({
         videoId: input.videoId, observedAt: input.observedAt, observationBucket: input.observationBucket,
@@ -480,7 +494,7 @@ export class OpportunityAnalyticsRepository {
 
   async listVideoIdsForChannel(channelId: string, limit: number, offset = 0): Promise<string[]> {
     const rows = await this.db.select({ id: videos.id }).from(videos)
-      .where(eq(videos.channelId, channelId)).limit(limit).offset(offset);
+      .where(eq(videos.channelId, channelId)).orderBy(videos.id).limit(limit).offset(offset);
     return rows.map((row) => row.id);
   }
 
