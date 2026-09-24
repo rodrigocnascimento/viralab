@@ -96,6 +96,25 @@ jobs:
         if: steps.release.outputs.deploy == 'true'
         run: pnpm install --frozen-lockfile
 
+      - name: Ensure historical queues
+        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ensure_queue() {
+            local name="$1"
+            if ! pnpm --filter @viralab/observation exec wrangler queues info "$name" >/dev/null 2>&1; then
+              pnpm --filter @viralab/observation exec wrangler queues create "$name"
+            fi
+          }
+          ensure_queue viralab-analytics
+          ensure_queue viralab-analytics-dlq
+          ensure_queue viralab-observation
+          ensure_queue viralab-observation-dlq
+
       - name: Apply database migrations
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.database == 'true'
         env:
@@ -108,7 +127,7 @@ jobs:
 
       - name: Deploy API
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.api == 'true'
-        env: &cloudflare
+        env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @viralab/api exec wrangler deploy
@@ -119,7 +138,9 @@ jobs:
 
       - name: Deploy analytics consumer
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.analytics == 'true'
-        env: *cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @viralab/analytics exec wrangler deploy
 
       - name: Build observation consumer
@@ -128,7 +149,9 @@ jobs:
 
       - name: Deploy observation consumer
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.observation == 'true'
-        env: *cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @viralab/observation exec wrangler deploy
 
       - name: Build observation scheduler
@@ -137,7 +160,9 @@ jobs:
 
       - name: Deploy observation scheduler
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.scheduler == 'true'
-        env: *cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @viralab/observation-scheduler exec wrangler deploy
 
       - name: Build channel ingestion consumer
@@ -146,7 +171,9 @@ jobs:
 
       - name: Deploy channel ingestion consumer
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.channel == 'true'
-        env: *cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @viralab/channel-ingestion exec wrangler deploy
 
       - name: Build discovery consumer
@@ -155,5 +182,7 @@ jobs:
 
       - name: Deploy discovery consumer
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.discovery == 'true'
-        env: *cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @viralab/discovery exec wrangler deploy
