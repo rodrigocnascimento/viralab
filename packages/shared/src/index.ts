@@ -85,6 +85,7 @@ export const analyticsOpportunityQueueMessageSchema = z.object({
   sourceJobId: z.uuid(),
   requestedAt: z.iso.datetime(),
   reason: z.enum(['discovery', 'observation', 'channel_enrichment']),
+  offset: z.number().int().nonnegative().optional(),
 });
 
 export type ObservationQueueMessage = z.infer<typeof observationQueueMessageSchema>;
