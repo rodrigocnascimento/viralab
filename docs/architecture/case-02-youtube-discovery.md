@@ -1,6 +1,8 @@
 # Case 02 — YouTube Discovery
 
-Status: Implementation baseline
+Status: Implemented historical case record
+
+> This document records the Case 02 scope as delivered. For the current whole-system architecture and later historical-observation decisions, see `ARCHITECTURE.md` and the ADR index.
 Date: 2026-09-16
 Issue: #6
 
@@ -268,7 +270,7 @@ packages/database
   repositories for channels/videos/analytics events
 ```
 
-The repository currently contains legacy Case 01 TypeORM/Redis worker artifacts. ADR-003/004 already supersede those choices. Case 02 should build on the accepted Cloudflare/Drizzle target rather than adding new domain behavior to BullMQ/TypeORM.
+At the time of Case 02, the repository still contained legacy Case 01 TypeORM/Redis worker artifacts. ADR-003/004 superseded those choices; subsequent implementation completed the Cloudflare/Drizzle direction.
 
 ## Test strategy
 
