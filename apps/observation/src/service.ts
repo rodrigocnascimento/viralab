@@ -31,7 +31,7 @@ export const processObservation = async (
   if (message.entityType === 'channel') {
     const result = await deps.channelProvider.getChannel({ providerChannelId: message.providerEntityId });
     outcome = await deps.persistence.persistChannel({
-      channelId: message.entityId, providerId: message.providerEntityId, ...result.channel,
+      ...result.channel, channelId: message.entityId, providerId: message.providerEntityId,
       observedAt, observationBucket: observationBucket(observedAt), source: message.source, jobId: message.jobId,
     });
     quotaCost = result.quotaCost;
