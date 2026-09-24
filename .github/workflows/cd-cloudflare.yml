@@ -58,13 +58,9 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            echo "database=true" >> "$GITHUB_OUTPUT"
-            echo "api=true" >> "$GITHUB_OUTPUT"
-            echo "analytics=true" >> "$GITHUB_OUTPUT"
-            echo "observation=true" >> "$GITHUB_OUTPUT"
-            echo "scheduler=true" >> "$GITHUB_OUTPUT"
-            echo "channel=true" >> "$GITHUB_OUTPUT"
-            echo "discovery=true" >> "$GITHUB_OUTPUT"
+            for component in database api analytics observation scheduler channel discovery; do
+              echo "$component=true" >> "$GITHUB_OUTPUT"
+            done
             exit 0
           fi
           changed="$(git diff --name-only HEAD^ HEAD)"
@@ -72,32 +68,32 @@ jobs:
           affects() { grep -Eq "$1" <<<"$changed"; }
           affects '^packages/database/|^package.json$|^pnpm-lock.yaml$' && database=true || database=false
           affects '^apps/api/|^packages/(auth|rate-limit|providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && api=true || api=false
-          affects '^apps/analytics/|^packages/(database|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && channel=true || channel=false
+          affects '^apps/analytics/|^packages/(database|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && analytics=true || analytics=false
+          affects '^apps/observation/|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && observation=true || observation=false
+          affects '^apps/observation-scheduler/|^packages/(database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && scheduler=true || scheduler=false
+          affects '^apps/channel-ingestion/|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && channel=true || channel=false
           affects '^apps/discovery/|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && discovery=true || discovery=false
-          echo "database=$database" >> "$GITHUB_OUTPUT"
-          echo "analytics=$analytics" >> "$GITHUB_OUTPUT"
-          echo "observation=$observation" >> "$GITHUB_OUTPUT"
-          echo "scheduler=$scheduler" >> "$GITHUB_OUTPUT"
-          echo "api=$api" >> "$GITHUB_OUTPUT"
-          echo "channel=$channel" >> "$GITHUB_OUTPUT"
-          echo "discovery=$discovery" >> "$GITHUB_OUTPUT"
+          for component in database api analytics observation scheduler channel discovery; do
+            value="$(eval "printf '%s' \"$$component\"")"
+            echo "$component=$value" >> "$GITHUB_OUTPUT"
+          done
 
       - name: Setup pnpm
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
+        if: steps.release.outputs.deploy == 'true'
         uses: pnpm/action-setup@v6
         with:
           version: 10.15.1
           run_install: false
 
       - name: Setup Node.js
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
+        if: steps.release.outputs.deploy == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install dependencies
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
+        if: steps.release.outputs.deploy == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Apply database migrations
@@ -112,7 +108,7 @@ jobs:
 
       - name: Deploy API
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.api == 'true'
-        env:
+        env: &cloudflare
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @viralab/api exec wrangler deploy
@@ -123,9 +119,7 @@ jobs:
 
       - name: Deploy analytics consumer
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.analytics == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        env: *cloudflare
         run: pnpm --filter @viralab/analytics exec wrangler deploy
 
       - name: Build observation consumer
@@ -134,9 +128,7 @@ jobs:
 
       - name: Deploy observation consumer
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.observation == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        env: *cloudflare
         run: pnpm --filter @viralab/observation exec wrangler deploy
 
       - name: Build observation scheduler
@@ -145,9 +137,7 @@ jobs:
 
       - name: Deploy observation scheduler
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.scheduler == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        env: *cloudflare
         run: pnpm --filter @viralab/observation-scheduler exec wrangler deploy
 
       - name: Build channel ingestion consumer
@@ -156,9 +146,7 @@ jobs:
 
       - name: Deploy channel ingestion consumer
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.channel == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        env: *cloudflare
         run: pnpm --filter @viralab/channel-ingestion exec wrangler deploy
 
       - name: Build discovery consumer
@@ -167,199 +155,5 @@ jobs:
 
       - name: Deploy discovery consumer
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.discovery == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter @viralab/discovery exec wrangler deploy
- && analytics=true || analytics=false
-          affects '^apps/observation/|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && channel=true || channel=false
-          affects '^apps/discovery/|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && discovery=true || discovery=false
-          echo "database=$database" >> "$GITHUB_OUTPUT"
-          echo "api=$api" >> "$GITHUB_OUTPUT"
-          echo "channel=$channel" >> "$GITHUB_OUTPUT"
-          echo "discovery=$discovery" >> "$GITHUB_OUTPUT"
-
-      - name: Setup pnpm
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10.15.1
-          run_install: false
-
-      - name: Setup Node.js
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
-        run: pnpm install --frozen-lockfile
-
-      - name: Apply database migrations
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.database == 'true'
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: pnpm db:migrate
-
-      - name: Build API
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.api == 'true'
-        run: pnpm --filter @viralab/api... build
-
-      - name: Deploy API
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.api == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter @viralab/api exec wrangler deploy
-
-      - name: Build channel ingestion consumer
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.channel == 'true'
-        run: pnpm --filter @viralab/channel-ingestion... build
-
-      - name: Deploy channel ingestion consumer
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.channel == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter @viralab/channel-ingestion exec wrangler deploy
-
-      - name: Build discovery consumer
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.discovery == 'true'
-        run: pnpm --filter @viralab/discovery... build
-
-      - name: Deploy discovery consumer
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.discovery == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter @viralab/discovery exec wrangler deploy
- && observation=true || observation=false
-          affects '^apps/observation-scheduler/|^packages/(database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && channel=true || channel=false
-          affects '^apps/discovery/|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && discovery=true || discovery=false
-          echo "database=$database" >> "$GITHUB_OUTPUT"
-          echo "api=$api" >> "$GITHUB_OUTPUT"
-          echo "channel=$channel" >> "$GITHUB_OUTPUT"
-          echo "discovery=$discovery" >> "$GITHUB_OUTPUT"
-
-      - name: Setup pnpm
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10.15.1
-          run_install: false
-
-      - name: Setup Node.js
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
-        run: pnpm install --frozen-lockfile
-
-      - name: Apply database migrations
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.database == 'true'
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: pnpm db:migrate
-
-      - name: Build API
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.api == 'true'
-        run: pnpm --filter @viralab/api... build
-
-      - name: Deploy API
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.api == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter @viralab/api exec wrangler deploy
-
-      - name: Build channel ingestion consumer
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.channel == 'true'
-        run: pnpm --filter @viralab/channel-ingestion... build
-
-      - name: Deploy channel ingestion consumer
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.channel == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter @viralab/channel-ingestion exec wrangler deploy
-
-      - name: Build discovery consumer
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.discovery == 'true'
-        run: pnpm --filter @viralab/discovery... build
-
-      - name: Deploy discovery consumer
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.discovery == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter @viralab/discovery exec wrangler deploy
- && scheduler=true || scheduler=false
-          affects '^apps/channel-ingestion/|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && channel=true || channel=false
-          affects '^apps/discovery/|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && discovery=true || discovery=false
-          echo "database=$database" >> "$GITHUB_OUTPUT"
-          echo "api=$api" >> "$GITHUB_OUTPUT"
-          echo "channel=$channel" >> "$GITHUB_OUTPUT"
-          echo "discovery=$discovery" >> "$GITHUB_OUTPUT"
-
-      - name: Setup pnpm
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10.15.1
-          run_install: false
-
-      - name: Setup Node.js
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
-        run: pnpm install --frozen-lockfile
-
-      - name: Apply database migrations
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.database == 'true'
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: pnpm db:migrate
-
-      - name: Build API
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.api == 'true'
-        run: pnpm --filter @viralab/api... build
-
-      - name: Deploy API
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.api == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter @viralab/api exec wrangler deploy
-
-      - name: Build channel ingestion consumer
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.channel == 'true'
-        run: pnpm --filter @viralab/channel-ingestion... build
-
-      - name: Deploy channel ingestion consumer
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.channel == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm --filter @viralab/channel-ingestion exec wrangler deploy
-
-      - name: Build discovery consumer
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.discovery == 'true'
-        run: pnpm --filter @viralab/discovery... build
-
-      - name: Deploy discovery consumer
-        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.discovery == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        env: *cloudflare
         run: pnpm --filter @viralab/discovery exec wrangler deploy
