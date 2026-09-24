@@ -1,48 +1,61 @@
-# Foundation architecture
+# Foundation architecture — historical record
 
-## Scope
+Status: Superseded as current architecture
+Original scope: Case 01
+Superseded by: ADR-001, ADR-003, ADR-004 and `ARCHITECTURE.md`
 
-Case 01 establishes the runtime boundaries and local infrastructure only. YouTube discovery, ingestion, analytics, snapshots and production deployment are intentionally deferred.
+## Purpose of this document
 
-## Runtime topology
+This file preserves the initial Case 01 foundation decisions for repository history. It is **not** the current Viralab runtime architecture.
+
+The original foundation intentionally established conventional Node.js boundaries before the production runtime had been selected:
 
 ```text
-Vue 3 / Vite (apps/web)
-        |
-        | HTTP
-        v
-Fastify (apps/api) ----> PostgreSQL 16
-
-BullMQ Worker (apps/worker) ----> Redis 7
+Fastify API        -> PostgreSQL 16 / TypeORM
+BullMQ Worker      -> Redis 7
+Docker containers  -> candidate Fly.io deployment
 ```
 
-## Packages
+Subsequent investigation selected a Cloudflare-native architecture. The following original choices are therefore historical only:
 
-- `@viralab/shared`: environment contracts and code genuinely shared by runtimes.
-- `@viralab/database`: TypeORM DataSource and migrations. Domain entities will be added only when their Cases require them.
+- Fastify as the production HTTP runtime;
+- BullMQ as the hosted asynchronous transport;
+- Redis as a production queue dependency;
+- TypeORM as the persistence toolkit;
+- long-running production containers/Fly.io as the canonical deployment target.
 
-## Decisions
+Do not add new product behavior to those superseded paths.
 
-### Monorepo
+## What remains true from Foundation
 
-pnpm workspaces keep the three deployable runtimes and shared packages independently buildable without introducing a monorepo orchestrator in the MVP.
+The following principles survived the runtime migration and remain part of the current architecture:
 
-### Database
+- a pnpm/TypeScript monorepo with explicit application/package boundaries;
+- PostgreSQL as the system of record;
+- explicit migrations rather than runtime schema synchronization;
+- environment validation and secret separation;
+- a health contract that verifies database reachability;
+- asynchronous work isolated from HTTP request handling;
+- infrastructure adapters kept outside business/application contracts;
+- automated lint, typecheck, tests and build gates.
 
-TypeORM uses explicit migrations with `synchronize: false`. This makes schema evolution reproducible and safe for later environments.
+## Current replacements
 
-### Environment
+| Foundation choice | Current choice |
+| --- | --- |
+| Fastify production API | Cloudflare HTTP Worker |
+| BullMQ | Cloudflare Queues |
+| Redis queue backend | Managed queue primitive; no Redis production dependency |
+| TypeORM | Drizzle |
+| Fly.io/container-first production | Cloudflare Workers + Hyperdrive |
+| local Docker PostgreSQL + Redis | local PostgreSQL remains useful; Redis is no longer required |
 
-Runtime environment variables are parsed at process startup with Zod. Invalid configuration fails fast instead of surfacing later as partial runtime failures.
+The durable decisions are recorded in the ADRs:
 
-### Worker
+- ADR-001 — Cloudflare-native runtime;
+- ADR-002 — Supabase managed PostgreSQL;
+- ADR-003 — Cloudflare Queues;
+- ADR-004 — Drizzle;
+- ADR-005 — scheduler/processing separation.
 
-The worker owns a BullMQ `Worker` connected to Redis. Queue producers, schedules, retry policies and quota-control semantics belong to later ingestion Cases.
-
-### Health
-
-`GET /health` verifies the API process and performs a live PostgreSQL `SELECT 1`. It returns HTTP 503 with `degraded` when PostgreSQL cannot be reached.
-
-## Deferred to Case 01.1
-
-GitHub Actions, Fly.io configuration, production Dockerfiles and deployment concerns are intentionally excluded from this Case.
+For the current whole-system view, read `docs/architecture/ARCHITECTURE.md`.
