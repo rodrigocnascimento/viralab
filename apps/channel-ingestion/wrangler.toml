@@ -12,6 +12,10 @@ max_batch_timeout = 5
 max_retries = 5
 dead_letter_queue = "viralab-channel-ingestion-dlq"
 
+[[queues.producers]]
+binding = "ANALYTICS_QUEUE"
+queue = "viralab-analytics"
+
 [[hyperdrive]]
 binding = "HYPERDRIVE"
 id = "3b8b5380c72b4d49af5828d60a08e969"
