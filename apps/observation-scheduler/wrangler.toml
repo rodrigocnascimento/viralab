@@ -1,0 +1,33 @@
+name = "viralab-observation-scheduler"
+main = "src/index.ts"
+compatibility_date = "2026-09-24"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+preview_urls = false
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[[queues.producers]]
+binding = "OBSERVATION_QUEUE"
+queue = "viralab-observation"
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "3b8b5380c72b4d49af5828d60a08e969"
+localConnectionString = "postgresql://viralab:viralab@localhost:5432/viralab"
+
+[vars]
+YOUTUBE_QUOTA_DAILY_BUDGET = "10000"
+YOUTUBE_QUOTA_DISCOVERY = "4000"
+YOUTUBE_QUOTA_CHANNEL_OBSERVATION = "2000"
+YOUTUBE_QUOTA_VIDEO_OBSERVATION = "3500"
+YOUTUBE_QUOTA_RESERVE = "500"
+OBSERVATION_SCHEDULER_BATCH_SIZE = "100"
+OBSERVATION_LEASE_SECONDS = "900"
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 0.50
+invocation_logs = true
+persist = true
