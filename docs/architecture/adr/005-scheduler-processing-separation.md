@@ -1,83 +1,33 @@
-# ADR-005: Separate scheduling/policy from processing
+# ADR-005: Separate scheduling from discovery processing
 
 - Status: Accepted
 - Date: 2026-09-16
-- Clarified: 2026-09-23
 
 ## Context
 
-Viralab periodically discovers and refreshes external provider data. A Cron Trigger could technically perform provider work directly, but that would combine timing, work selection, lifecycle/freshness policy, quota admission, external calls, fan-out, persistence and retry in one invocation.
-
-Dataset growth and provider quota make that coupling increasingly risky. The same separation originally adopted for discovery also applies to the historical observation pipeline.
+Viralab must periodically discover and refresh YouTube data. A Cron Trigger could technically perform discovery directly, but that would combine timing, work selection, YouTube calls, fan-out, persistence and retry in one invocation. Dataset size and YouTube quota make that coupling increasingly risky.
 
 ## Decision
 
-Cron-triggered schedulers are bounded coordinators only. They decide **what work is due and admissible** and enqueue it. Queue consumers perform external data acquisition, persistence and downstream processing.
-
-The architecture distinguishes scheduling concerns by policy:
+Cron is a coordinator only. Scheduled handlers decide what work is due, enforce a bounded run/quota policy, persist run metadata where appropriate and enqueue work. Queue consumers perform external data acquisition and persistence.
 
 ```text
-Discovery Scheduler
-  -> select due discovery strategies/seeds
-  -> enforce discovery bounds/budget
-  -> enqueue discovery work
-
-Observation Scheduler
-  -> select known entities due for observation
-  -> evaluate lifecycle and adaptive-sampling policy
-  -> enforce observation budget
-  -> enqueue observation work
+Cron -> policy/run creation -> enqueue -> consumer -> YouTube -> PostgreSQL
 ```
 
-A scheduler must not call YouTube for bulk acquisition, recursively crawl entities or calculate analytical models inline.
+The scheduler must have explicit bounds. It may never create an unbounded recursive crawl.
 
-Schedulers may share implementation infrastructure where useful, but discovery policy and observation policy remain separate application concerns.
+## Discovery run model
 
-## Historical observation policy
+A run should eventually record at least: identifier, trigger/strategy, start/end timestamps, status, configured quota/work budget, operation counters, messages/candidates scheduled, success/failure counters and terminal diagnostics.
 
-The accepted target uses:
-
-- lifecycle states ACTIVE, COLD and ARCHIVED;
-- lifecycle signals based initially on Recency, Growth and Discovery;
-- adaptive nominal observation intervals of 6h -> 12h -> 24h -> 72h;
-- no routine observations for ARCHIVED entities;
-- rediscovery or renewed signal may reactivate an entity.
-
-The exact measurable lifecycle thresholds are deliberately deferred to the algorithm-roadmap formalization. This ADR establishes the scheduling boundary, not a scoring formula.
-
-## Run/work model
-
-A scheduled run should eventually record enough information to explain:
-
-- what triggered the run;
-- which policy selected work;
-- configured/available quota budget;
-- work/messages admitted and deferred;
-- provider operations consumed;
-- success/failure/defer counters;
-- terminal diagnostics.
-
-This allows questions such as: Why was this entity fetched? Why was it deferred? Which lifecycle/sampling policy applied? How much provider budget did the run consume?
-
-## Bounds
-
-Schedulers must have explicit limits. They may never create an unbounded recursive crawl or scan an unbounded dataset in one invocation.
-
-Selection should use indexed due-work state (for example a future `next_observation_at` projection) rather than repeatedly scanning all historical observations to decide what is due.
+This makes discovery explainable and permits questions such as: Why was this channel fetched? Which strategy found it? How much quota did a run consume? Where did a run fail? Did the scheduler stop because of policy or an incident?
 
 ## Consequences
 
-Positive:
-
-- Cron invocations remain short and predictable;
-- provider work receives queue retry/backpressure semantics;
-- discovery and historical refresh can evolve independently;
-- quota policy is evaluated before expensive work is emitted;
-- lifecycle/adaptive-sampling changes do not require provider-adapter changes.
-
-Trade-offs:
-
-- schedule time and completed observations are eventually consistent;
-- due-work state and scheduler idempotency require explicit design;
-- run/work metadata adds persistence and operational complexity;
-- quota budgeting must coordinate across scheduler invocations rather than rely on process memory.
+- scheduled handlers stay short and deterministic;
+- individual discovery tasks can retry independently;
+- run-level observability becomes possible;
+- queue backlog can absorb bursts;
+- eventual consistency is accepted between schedule time and completed observations;
+- run completion requires explicit accounting rather than assuming Cron completion means discovery completion.
