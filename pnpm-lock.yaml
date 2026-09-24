@@ -24,6 +24,63 @@ importers:
         specifier: ^8.43.0
         version: 8.70.0(eslint@9.39.5)(typescript@5.9.3)
 
+  apps/analytics:
+    dependencies:
+      '@viralab/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@viralab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+    devDependencies:
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@24.13.5)(tsx@4.23.13)
+      wrangler:
+        specifier: ^4.35.0
+        version: 4.133.0(@types/node@24.13.5)
+
+  apps/observation:
+    dependencies:
+      '@viralab/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@viralab/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@viralab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@viralab/youtube':
+        specifier: workspace:*
+        version: link:../../packages/youtube
+    devDependencies:
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@24.13.5)(tsx@4.23.13)
+      wrangler:
+        specifier: ^4.35.0
+        version: 4.133.0(@types/node@24.13.5)
+
+  apps/observation-scheduler:
+    dependencies:
+      '@viralab/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@viralab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@viralab/youtube':
+        specifier: workspace:*
+        version: link:../../packages/youtube
+    devDependencies:
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@24.13.5)(tsx@4.23.13)
+      wrangler:
+        specifier: ^4.35.0
+        version: 4.133.0(@types/node@24.13.5)
+
   apps/api:
     dependencies:
       '@viralab/auth':
