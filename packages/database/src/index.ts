@@ -1,8 +1,10 @@
 import { and, desc, eq, gt, gte, isNull, lt, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { analyticsEvents, channels, opportunities, profiles, videos, waitlistEntries } from './schema.js';
-import { scoreVideoOutlier } from './opportunity.js';
+import {
+  analyticsEvents, channelObservations, channels, observationSchedules, opportunities,
+  profiles, providerQuotaUsage, videoObservations, videos, waitlistEntries,
+} from './schema.js';
 export * from './opportunity.js';
 
 export * from './schema.js';
@@ -138,34 +140,7 @@ export class DiscoveryRepository {
       .returning({ id: videos.id });
 
     if (!row) throw new Error('Video upsert did not return a row');
-    await this.recomputeVideoOpportunity(row.id, input.channelId, input.provider, input.discoveredAt);
     return row.id;
-  }
-
-  private async recomputeVideoOpportunity(videoId: string, channelId: string, provider: 'youtube', detectedAt: Date): Promise<void> {
-    const [video] = await this.db.select().from(videos).where(and(eq(videos.id, videoId), eq(videos.channelId, channelId))).limit(1);
-    const [channel] = await this.db.select().from(channels).where(eq(channels.id, channelId)).limit(1);
-    if (!video || video.viewCount === null || !channel?.viewCount || !channel.videoCount) return;
-
-    const signal = scoreVideoOutlier({ videoViews: video.viewCount, channelViews: channel.viewCount, channelVideos: channel.videoCount });
-    if (!signal) {
-      await this.db.delete(opportunities).where(and(eq(opportunities.videoId, video.id), eq(opportunities.type, 'video_outlier')));
-      return;
-    }
-    const evidence = {
-      model: 'channel_lifetime_average_v1',
-      channelViewCount: channel.viewCount.toString(),
-      channelVideoCount: channel.videoCount.toString(),
-    };
-    await this.db.insert(opportunities).values({
-      type: 'video_outlier', provider, videoId: video.id, channelId, score: signal.score, confidence: signal.confidence,
-      multiplier: signal.multiplier, baselineViewCount: signal.baselineViews, observedViewCount: video.viewCount,
-      evidence, detectedAt, updatedAt: detectedAt,
-    }).onConflictDoUpdate({
-      target: [opportunities.videoId, opportunities.type],
-      set: { score: signal.score, confidence: signal.confidence, multiplier: signal.multiplier, baselineViewCount: signal.baselineViews,
-        observedViewCount: video.viewCount, evidence, detectedAt, updatedAt: detectedAt },
-    });
   }
 
   async findChannelByProviderId(provider: 'youtube', providerId: string) {
@@ -305,10 +280,138 @@ export class DiscoveryRepository {
       throw new Error('Channel enrichment identity mismatch or channel not found');
     }
 
-    const channelVideos = await this.db.select({ id: videos.id }).from(videos).where(eq(videos.channelId, input.channelId));
-    for (const video of channelVideos) {
-      await this.recomputeVideoOpportunity(video.id, input.channelId, input.provider, input.ingestedAt);
-    }
+  }
+}
+
+export class ObservationRepository {
+  constructor(private readonly db: ViralabDatabase) {}
+
+  async appendChannelObservation(input: {
+    channelId: string; observedAt: Date; observationBucket: Date;
+    subscriberCount?: bigint | null; viewCount?: bigint | null; videoCount?: bigint | null;
+    source: string; jobId?: string | null;
+  }): Promise<'inserted' | 'duplicate'> {
+    const rows = await this.db.insert(channelObservations).values({
+      ...input, subscriberCount: input.subscriberCount ?? null, viewCount: input.viewCount ?? null,
+      videoCount: input.videoCount ?? null, jobId: input.jobId ?? null,
+    }).onConflictDoNothing({
+      target: [channelObservations.channelId, channelObservations.observationBucket],
+    }).returning({ id: channelObservations.id });
+    return rows.length === 0 ? 'duplicate' : 'inserted';
+  }
+
+  async appendVideoObservation(input: {
+    videoId: string; observedAt: Date; observationBucket: Date;
+    viewCount?: bigint | null; likeCount?: bigint | null; commentCount?: bigint | null;
+    source: string; jobId?: string | null;
+  }): Promise<'inserted' | 'duplicate'> {
+    const rows = await this.db.insert(videoObservations).values({
+      ...input, viewCount: input.viewCount ?? null, likeCount: input.likeCount ?? null,
+      commentCount: input.commentCount ?? null, jobId: input.jobId ?? null,
+    }).onConflictDoNothing({
+      target: [videoObservations.videoId, videoObservations.observationBucket],
+    }).returning({ id: videoObservations.id });
+    return rows.length === 0 ? 'duplicate' : 'inserted';
+  }
+}
+
+export class ObservationScheduleRepository {
+  constructor(private readonly db: ViralabDatabase) {}
+
+  async listDue(input: { now: Date; limit: number }) {
+    return this.db.select().from(observationSchedules)
+      .where(and(
+        or(eq(observationSchedules.lifecycleState, 'ACTIVE'), eq(observationSchedules.lifecycleState, 'COLD')),
+        gte(input.now, observationSchedules.nextObservationAt),
+      ))
+      .orderBy(observationSchedules.nextObservationAt)
+      .limit(input.limit);
+  }
+}
+
+export class ProviderQuotaRepository {
+  constructor(private readonly db: ViralabDatabase) {}
+
+  async reserve(input: {
+    provider: string; quotaDate: string; workloadClass: string; units: number; limit: number; now: Date;
+  }): Promise<boolean> {
+    if (input.units <= 0 || input.limit < 0) return false;
+    await this.db.insert(providerQuotaUsage).values({
+      provider: input.provider, quotaDate: input.quotaDate, workloadClass: input.workloadClass,
+      consumedUnits: 0, reservedUnits: 0, updatedAt: input.now,
+    }).onConflictDoNothing({
+      target: [providerQuotaUsage.provider, providerQuotaUsage.quotaDate, providerQuotaUsage.workloadClass],
+    });
+    const rows = await this.db.update(providerQuotaUsage).set({
+      reservedUnits: sql`${providerQuotaUsage.reservedUnits} + ${input.units}`,
+      updatedAt: input.now,
+    }).where(and(
+      eq(providerQuotaUsage.provider, input.provider),
+      eq(providerQuotaUsage.quotaDate, input.quotaDate),
+      eq(providerQuotaUsage.workloadClass, input.workloadClass),
+      sql`${providerQuotaUsage.consumedUnits} + ${providerQuotaUsage.reservedUnits} + ${input.units} <= ${input.limit}`,
+    )).returning({ id: providerQuotaUsage.id });
+    return rows.length === 1;
+  }
+
+  async consume(input: { provider: string; quotaDate: string; workloadClass: string; units: number; now: Date }): Promise<void> {
+    await this.db.update(providerQuotaUsage).set({
+      reservedUnits: sql`greatest(0, ${providerQuotaUsage.reservedUnits} - ${input.units})`,
+      consumedUnits: sql`${providerQuotaUsage.consumedUnits} + ${input.units}`,
+      updatedAt: input.now,
+    }).where(and(
+      eq(providerQuotaUsage.provider, input.provider),
+      eq(providerQuotaUsage.quotaDate, input.quotaDate),
+      eq(providerQuotaUsage.workloadClass, input.workloadClass),
+    ));
+  }
+
+  async release(input: { provider: string; quotaDate: string; workloadClass: string; units: number; now: Date }): Promise<void> {
+    await this.db.update(providerQuotaUsage).set({
+      reservedUnits: sql`greatest(0, ${providerQuotaUsage.reservedUnits} - ${input.units})`,
+      updatedAt: input.now,
+    }).where(and(
+      eq(providerQuotaUsage.provider, input.provider),
+      eq(providerQuotaUsage.quotaDate, input.quotaDate),
+      eq(providerQuotaUsage.workloadClass, input.workloadClass),
+    ));
+  }
+}
+
+export class OpportunityAnalyticsRepository {
+  constructor(private readonly db: ViralabDatabase) {}
+
+  async getVideoContext(videoId: string) {
+    const [row] = await this.db.select({ video: videos, channel: channels }).from(videos)
+      .innerJoin(channels, eq(videos.channelId, channels.id)).where(eq(videos.id, videoId)).limit(1);
+    return row ?? null;
+  }
+
+  async listVideoIdsForChannel(channelId: string, limit: number, offset = 0): Promise<string[]> {
+    const rows = await this.db.select({ id: videos.id }).from(videos)
+      .where(eq(videos.channelId, channelId)).limit(limit).offset(offset);
+    return rows.map((row) => row.id);
+  }
+
+  async deleteVideoOutlier(videoId: string): Promise<void> {
+    await this.db.delete(opportunities).where(and(eq(opportunities.videoId, videoId), eq(opportunities.type, 'video_outlier')));
+  }
+
+  async upsertVideoOutlier(input: {
+    provider: 'youtube'; videoId: string; channelId: string; score: number; confidence: number;
+    multiplier: number; baselineViewCount: bigint; observedViewCount: bigint;
+    evidence: Record<string, unknown>; detectedAt: Date;
+  }): Promise<void> {
+    await this.db.insert(opportunities).values({
+      type: 'video_outlier', ...input, updatedAt: input.detectedAt,
+    }).onConflictDoUpdate({
+      target: [opportunities.videoId, opportunities.type],
+      set: {
+        score: input.score, confidence: input.confidence, multiplier: input.multiplier,
+        baselineViewCount: input.baselineViewCount, observedViewCount: input.observedViewCount,
+        evidence: input.evidence, detectedAt: input.detectedAt, updatedAt: input.detectedAt,
+      },
+    });
   }
 }
 
