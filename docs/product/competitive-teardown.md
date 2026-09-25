@@ -1,6 +1,6 @@
 # Competitive Teardown — YouTube Opportunity Intelligence
 
-Status: Product research  
+Status: Product research — validated against `docs/architecture/ALGORITHM_ROADMAP.md`  
 Date: 2026-09-24  
 Scope: TubeLab, OutlierKit, 1of10, Viewstats, vidIQ, NexLev; adjacent reference: Tubular Labs
 
@@ -417,14 +417,19 @@ Marketing language, not a moat. The relevant questions are coverage, sampling se
 
 A signal is a reusable derived interpretation of observations. It is not yet a user-facing opportunity.
 
-Examples:
+This definition is consistent with the Algorithm Roadmap, which explicitly sequences `observations -> temporal primitives -> product models`.
 
-- abnormal video velocity;
-- channel growth acceleration;
-- repeated discovery of related channels;
-- multiple videos crossing age-normalized baselines;
-- increasing density of outliers in a topic cluster;
-- deceleration after a prior peak.
+Examples already aligned with that roadmap include:
+
+- absolute/relative growth;
+- video or channel velocity;
+- acceleration;
+- discovery frequency/rediscovery;
+- age-normalized video outlier multiplier;
+- breakout-channel trajectory evidence;
+- niche breadth/persistence across independent channels.
+
+Concepts such as saturation and decay are useful product hypotheses, but they are not yet formalized algorithm phases and should not be treated as committed signals until defined and calibrated.
 
 This aligns with the accepted architecture: observations are facts; signals interpret facts; opportunity models compose signals.
 
@@ -484,6 +489,8 @@ The distinction is essential:
 
 One of the strongest candidate differentiators is treating **independent confirmation** as first-class evidence.
 
+This is also consistent with **Phase F — Niche Momentum** in the Algorithm Roadmap, which already proposes distinct-channel breadth, persistence across windows, accelerating-video counts and breakout-channel counts as niche-level aggregates. The competitive insight here is therefore not to invent a separate algorithm family, but to make that breadth/confirmation evidence highly visible and explainable in the product.
+
 A single 20x video may represent:
 
 - creator-specific audience affinity;
@@ -512,6 +519,8 @@ This turns Viralab from a video finder into an evidence aggregation system.
 ---
 
 ## 14. Temporal questions Viralab should eventually answer
+
+The first three groups below map directly to existing Algorithm Roadmap phases. Diffusion maps mainly to Niche Momentum. Saturation and decay remain later product/model hypotheses and are not currently committed roadmap phases.
 
 The historical system becomes valuable when the product can answer questions competitors often reduce to filters or charts:
 
@@ -600,21 +609,22 @@ The current lifetime-baseline model is intentionally simple and provides immedia
 
 The accepted architecture is strategically aligned with the competitive whitespace. Observation integrity, replayability, lifecycle and quota discipline are not background engineering; they are prerequisites for differentiated temporal intelligence.
 
-### Separate algorithm roadmap from product research
+### Align product research with the existing algorithm roadmap
 
-The next algorithm document should define measurable candidates for:
+The analytical sequence is already formalized in `docs/architecture/ALGORITHM_ROADMAP.md`. This competitive research should not create a competing roadmap.
 
-- temporal/age-normalized video baselines;
-- channel growth velocity;
-- acceleration;
-- robust baselines;
-- momentum and decay;
-- cross-channel confirmation;
-- breakout-channel detection;
-- niche/topic momentum;
-- confidence and evidence quality.
+The relevant mapping is:
 
-This teardown intentionally does not choose formulas or thresholds.
+- **Phase A — Temporal primitives:** growth, relative growth, velocity, acceleration and confidence/data-quality;
+- **Phase B — Lifecycle + adaptive sampling:** provider-spend lifecycle and information-value cadence;
+- **Phase C — Temporal video baseline:** same-channel, age-aware robust baselines;
+- **Phase D — Video momentum / Outlier v2:** trajectory-aware video opportunities;
+- **Phase E — Breakout Channels v1:** channel-level trajectory and recent-video breadth;
+- **Phase F — Niche Momentum:** multi-channel aggregation, breadth, persistence and discovery frequency.
+
+Cross-channel confirmation belongs primarily to Phase F as breadth/persistence across independent channels. Opportunity-state concepts such as `EMERGING`, `ACCELERATING`, `SATURATING` and `DECAYING` remain product hypotheses until a later model/TDD explicitly defines their semantics.
+
+This teardown intentionally does not choose formulas or thresholds; the Algorithm Roadmap remains the source of truth for analytical sequencing and evaluation discipline.
 
 ### Treat alerts as a delivery mechanism, not a model
 
@@ -725,7 +735,7 @@ Viralab should detect evidence and trajectory, not claim certainty about future 
 9. **Cross-channel confirmation may be more defensible than another per-video outlier score.**
 10. **The Radar can become the primary product, with Explorer and Channel Analysis acting as evidence/investigation surfaces.**
 11. **Tubular Labs proves that velocity/trend lifecycle exists in enterprise social intelligence, so Viralab must differentiate on audience, sensitivity, evidence model and UX rather than claim temporal analytics is novel.**
-12. **The next major design artifact should be an algorithm roadmap, not a rewrite of the delivered Case documents.**
+12. **The existing Algorithm Roadmap is compatible with this competitive analysis and should remain the analytical source of truth; the next product work should validate how its outputs become explainable Radar/opportunity experiences rather than create a parallel scoring roadmap.**
 
 ---
 
