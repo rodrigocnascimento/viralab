@@ -1,16 +1,16 @@
-name = "viralab-channel-ingestion"
+name = "viralab-observation"
 main = "src/index.ts"
-compatibility_date = "2026-09-18"
+compatibility_date = "2026-09-24"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = false
 preview_urls = false
 
 [[queues.consumers]]
-queue = "viralab-channel-ingestion"
+queue = "viralab-observation"
 max_batch_size = 10
 max_batch_timeout = 5
 max_retries = 5
-dead_letter_queue = "viralab-channel-ingestion-dlq"
+dead_letter_queue = "viralab-observation-dlq"
 
 [[queues.producers]]
 binding = "ANALYTICS_QUEUE"
@@ -28,9 +28,4 @@ required = ["YOUTUBE_API_KEY"]
 enabled = true
 head_sampling_rate = 0.50
 invocation_logs = true
-persist = true
-
-[observability.traces]
-enabled = true
-head_sampling_rate = 0.25
 persist = true

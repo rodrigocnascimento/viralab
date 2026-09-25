@@ -58,6 +58,71 @@ export type DiscoveryRequest = z.infer<typeof discoveryRequestSchema>;
 export type DiscoveryQueueMessage = z.infer<typeof discoveryQueueMessageSchema>;
 export type ChannelIngestionQueueMessage = z.infer<typeof channelIngestionQueueMessageSchema>;
 
+export const observationQueueMessageSchema = z.object({
+  version: z.literal(1),
+  type: z.literal('content.observation.requested'),
+  provider: contentProviderSchema,
+  entityType: z.enum(['channel', 'video']),
+  entityId: z.uuid(),
+  providerEntityId: z.string().min(1).max(128),
+  jobId: z.uuid(),
+  correlationId: z.uuid(),
+  requestedAt: z.iso.datetime(),
+  source: z.enum(['scheduler', 'manual', 'discovery']),
+  quota: z.object({
+    date: z.iso.date(),
+    workloadClass: z.enum(['channel_observation', 'video_observation']),
+    units: z.number().int().positive(),
+  }).optional(),
+});
+
+export const analyticsOpportunityQueueMessageSchema = z.object({
+  version: z.literal(1),
+  type: z.literal('analytics.opportunity.requested'),
+  entityType: z.enum(['video', 'channel']),
+  entityId: z.uuid(),
+  correlationId: z.uuid(),
+  sourceJobId: z.uuid(),
+  requestedAt: z.iso.datetime(),
+  reason: z.enum(['discovery', 'observation', 'channel_enrichment']),
+  offset: z.number().int().nonnegative().optional(),
+});
+
+export type ObservationQueueMessage = z.infer<typeof observationQueueMessageSchema>;
+export type AnalyticsOpportunityQueueMessage = z.infer<typeof analyticsOpportunityQueueMessageSchema>;
+
+export const observationBucket = (observedAt: Date): Date => {
+  const bucket = new Date(observedAt);
+  bucket.setUTCMinutes(0, 0, 0);
+  return bucket;
+};
+
+export const lifecycleStateSchema = z.enum(['DISCOVERED', 'ACTIVE', 'COLD', 'ARCHIVED']);
+export type LifecycleState = z.infer<typeof lifecycleStateSchema>;
+
+export const providerWorkloadClassSchema = z.enum([
+  'discovery',
+  'channel_observation',
+  'video_observation',
+  'reserve',
+]);
+export type ProviderWorkloadClass = z.infer<typeof providerWorkloadClassSchema>;
+
+export const providerBudgetConfigSchema = z.object({
+  total: z.coerce.number().int().positive(),
+  discovery: z.coerce.number().int().nonnegative(),
+  channelObservation: z.coerce.number().int().nonnegative(),
+  videoObservation: z.coerce.number().int().nonnegative(),
+  reserve: z.coerce.number().int().nonnegative(),
+}).superRefine((value, ctx) => {
+  const allocated = value.discovery + value.channelObservation + value.videoObservation + value.reserve;
+  if (allocated > value.total) {
+    ctx.addIssue({ code: 'custom', message: 'Provider workload allocations exceed total daily budget' });
+  }
+});
+
+export type ProviderBudgetConfig = z.infer<typeof providerBudgetConfigSchema>;
+
 export const searchPerformedEventSchema = z.object({
   eventName: z.literal('search_performed'),
   eventVersion: z.literal(1),

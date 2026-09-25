@@ -1,6 +1,7 @@
 import {
   bigint,
   boolean,
+  date,
   doublePrecision,
   index,
   integer,
@@ -60,6 +61,71 @@ export const videos = pgTable('videos', {
   uniqueIndex('videos_youtube_id_uidx').on(table.youtubeId),
   index('videos_channel_id_idx').on(table.channelId),
   index('videos_published_at_idx').on(table.publishedAt),
+]);
+
+export const channelObservations = pgTable('channel_observations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  channelId: uuid('channel_id').notNull().references(() => channels.id, { onDelete: 'cascade' }),
+  observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+  observationBucket: timestamp('observation_bucket', { withTimezone: true }).notNull(),
+  subscriberCount: bigint('subscriber_count', { mode: 'bigint' }),
+  viewCount: bigint('view_count', { mode: 'bigint' }),
+  videoCount: bigint('video_count', { mode: 'bigint' }),
+  source: text('source').notNull(),
+  jobId: uuid('job_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('channel_observations_entity_bucket_uidx').on(table.channelId, table.observationBucket),
+  index('channel_observations_entity_observed_idx').on(table.channelId, table.observedAt),
+  index('channel_observations_bucket_idx').on(table.observationBucket),
+]);
+
+export const videoObservations = pgTable('video_observations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  videoId: uuid('video_id').notNull().references(() => videos.id, { onDelete: 'cascade' }),
+  observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+  observationBucket: timestamp('observation_bucket', { withTimezone: true }).notNull(),
+  viewCount: bigint('view_count', { mode: 'bigint' }),
+  likeCount: bigint('like_count', { mode: 'bigint' }),
+  commentCount: bigint('comment_count', { mode: 'bigint' }),
+  source: text('source').notNull(),
+  jobId: uuid('job_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('video_observations_entity_bucket_uidx').on(table.videoId, table.observationBucket),
+  index('video_observations_entity_observed_idx').on(table.videoId, table.observedAt),
+  index('video_observations_bucket_idx').on(table.observationBucket),
+]);
+
+export const observationSchedules = pgTable('observation_schedules', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  entityType: text('entity_type').notNull(),
+  entityId: uuid('entity_id').notNull(),
+  provider: text('provider').notNull(),
+  providerEntityId: text('provider_entity_id').notNull(),
+  lifecycleState: text('lifecycle_state').notNull().default('DISCOVERED'),
+  nextObservationAt: timestamp('next_observation_at', { withTimezone: true }),
+  lastObservedAt: timestamp('last_observed_at', { withTimezone: true }),
+  samplingIntervalSeconds: integer('sampling_interval_seconds'),
+  lifecycleChangedAt: timestamp('lifecycle_changed_at', { withTimezone: true }).notNull().defaultNow(),
+  leaseOwner: uuid('lease_owner'),
+  leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex('observation_schedules_entity_uidx').on(table.entityType, table.entityId),
+  index('observation_schedules_due_idx').on(table.lifecycleState, table.nextObservationAt),
+]);
+
+export const providerQuotaUsage = pgTable('provider_quota_usage', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  provider: text('provider').notNull(),
+  quotaDate: date('quota_date').notNull(),
+  workloadClass: text('workload_class').notNull(),
+  consumedUnits: integer('consumed_units').notNull().default(0),
+  reservedUnits: integer('reserved_units').notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('provider_quota_usage_bucket_uidx').on(table.provider, table.quotaDate, table.workloadClass),
 ]);
 
 export const opportunities = pgTable('opportunities', {
@@ -124,3 +190,8 @@ export type WaitlistEntry = typeof waitlistEntries.$inferSelect;
 export type Profile = typeof profiles.$inferSelect;
 export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
 export type NewAnalyticsEvent = typeof analyticsEvents.$inferInsert;
+
+export type ChannelObservation = typeof channelObservations.$inferSelect;
+export type VideoObservation = typeof videoObservations.$inferSelect;
+export type ObservationSchedule = typeof observationSchedules.$inferSelect;
+export type ProviderQuotaUsage = typeof providerQuotaUsage.$inferSelect;

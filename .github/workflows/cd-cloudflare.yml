@@ -58,10 +58,9 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            echo "database=true" >> "$GITHUB_OUTPUT"
-            echo "api=true" >> "$GITHUB_OUTPUT"
-            echo "channel=true" >> "$GITHUB_OUTPUT"
-            echo "discovery=true" >> "$GITHUB_OUTPUT"
+            for component in database api analytics observation scheduler channel discovery; do
+              echo "$component=true" >> "$GITHUB_OUTPUT"
+            done
             exit 0
           fi
           changed="$(git diff --name-only HEAD^ HEAD)"
@@ -69,30 +68,52 @@ jobs:
           affects() { grep -Eq "$1" <<<"$changed"; }
           affects '^packages/database/|^package.json$|^pnpm-lock.yaml$' && database=true || database=false
           affects '^apps/api/|^packages/(auth|rate-limit|providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && api=true || api=false
+          affects '^apps/analytics/|^packages/(database|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && analytics=true || analytics=false
+          affects '^apps/observation/|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && observation=true || observation=false
+          affects '^apps/observation-scheduler/|^packages/(database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && scheduler=true || scheduler=false
           affects '^apps/channel-ingestion/|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && channel=true || channel=false
           affects '^apps/discovery/|^packages/(providers|database|youtube|shared)/|^package.json$|^pnpm-lock.yaml$|^tsconfig.base.json$|^\.github/workflows/cd-cloudflare.yml$' && discovery=true || discovery=false
-          echo "database=$database" >> "$GITHUB_OUTPUT"
-          echo "api=$api" >> "$GITHUB_OUTPUT"
-          echo "channel=$channel" >> "$GITHUB_OUTPUT"
-          echo "discovery=$discovery" >> "$GITHUB_OUTPUT"
+          for component in database api analytics observation scheduler channel discovery; do
+            value="$(eval "printf '%s' \"$$component\"")"
+            echo "$component=$value" >> "$GITHUB_OUTPUT"
+          done
 
       - name: Setup pnpm
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
+        if: steps.release.outputs.deploy == 'true'
         uses: pnpm/action-setup@v6
         with:
           version: 10.15.1
           run_install: false
 
       - name: Setup Node.js
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
+        if: steps.release.outputs.deploy == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install dependencies
-        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.database == 'true' || steps.affected.outputs.api == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
+        if: steps.release.outputs.deploy == 'true'
         run: pnpm install --frozen-lockfile
+
+      - name: Ensure historical queues
+        if: steps.release.outputs.deploy == 'true' && (steps.affected.outputs.analytics == 'true' || steps.affected.outputs.observation == 'true' || steps.affected.outputs.scheduler == 'true' || steps.affected.outputs.channel == 'true' || steps.affected.outputs.discovery == 'true')
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ensure_queue() {
+            local name="$1"
+            if ! pnpm --filter @viralab/observation exec wrangler queues info "$name" >/dev/null 2>&1; then
+              pnpm --filter @viralab/observation exec wrangler queues create "$name"
+            fi
+          }
+          ensure_queue viralab-analytics
+          ensure_queue viralab-analytics-dlq
+          ensure_queue viralab-observation
+          ensure_queue viralab-observation-dlq
 
       - name: Apply database migrations
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.database == 'true'
@@ -110,6 +131,39 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: pnpm --filter @viralab/api exec wrangler deploy
+
+      - name: Build analytics consumer
+        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.analytics == 'true'
+        run: pnpm --filter @viralab/analytics... build
+
+      - name: Deploy analytics consumer
+        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.analytics == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @viralab/analytics exec wrangler deploy
+
+      - name: Build observation consumer
+        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.observation == 'true'
+        run: pnpm --filter @viralab/observation... build
+
+      - name: Deploy observation consumer
+        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.observation == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @viralab/observation exec wrangler deploy
+
+      - name: Build observation scheduler
+        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.scheduler == 'true'
+        run: pnpm --filter @viralab/observation-scheduler... build
+
+      - name: Deploy observation scheduler
+        if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.scheduler == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter @viralab/observation-scheduler exec wrangler deploy
 
       - name: Build channel ingestion consumer
         if: steps.release.outputs.deploy == 'true' && steps.affected.outputs.channel == 'true'

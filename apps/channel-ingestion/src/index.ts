@@ -1,5 +1,5 @@
 import { createDatabase, DiscoveryRepository } from '@viralab/database';
-import { channelIngestionQueueMessageSchema } from '@viralab/shared';
+import { channelIngestionQueueMessageSchema, type AnalyticsOpportunityQueueMessage } from '@viralab/shared';
 import { YouTubeDataApiGateway } from '@viralab/youtube';
 import { processChannelIngestion, shouldRetryProviderError } from './service.js';
 
@@ -13,10 +13,13 @@ type QueueBatch = {
   messages: QueueMessage[];
 };
 
+type QueueProducer<T> = { send(message: T): Promise<void> };
+
 type Env = {
   DATABASE_URL?: string;
   HYPERDRIVE?: { connectionString: string };
   YOUTUBE_API_KEY: string;
+  ANALYTICS_QUEUE?: QueueProducer<AnalyticsOpportunityQueueMessage>;
 };
 
 const databaseUrl = (env: Env): string => {
@@ -60,6 +63,9 @@ export default {
           const result = await processChannelIngestion(message, {
             provider,
             persistence,
+            enqueueAnalytics: env.ANALYTICS_QUEUE
+              ? (analyticsMessage) => env.ANALYTICS_QUEUE!.send(analyticsMessage)
+              : undefined,
             onProviderRequestCompleted: ({ provider: requestProvider, operation, quotaCost }) => {
               console.log(JSON.stringify({
                 event: 'provider.request.completed',

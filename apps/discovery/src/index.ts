@@ -1,5 +1,5 @@
 import { createDatabase, DiscoveryRepository } from '@viralab/database';
-import { discoveryQueueMessageSchema, type ChannelIngestionQueueMessage } from '@viralab/shared';
+import { discoveryQueueMessageSchema, type AnalyticsOpportunityQueueMessage, type ChannelIngestionQueueMessage } from '@viralab/shared';
 import { YouTubeDataApiGateway } from '@viralab/youtube';
 import { processDiscovery, shouldRetryProviderError } from './service.js';
 
@@ -13,14 +13,13 @@ type QueueBatch = {
   messages: QueueMessage[];
 };
 
-type QueueProducer = {
-  send(message: ChannelIngestionQueueMessage): Promise<void>;
-};
+type QueueProducer<T> = { send(message: T): Promise<void> };
 
 type Env = {
   DATABASE_URL?: string;
   HYPERDRIVE?: { connectionString: string };
-  CHANNEL_INGESTION_QUEUE?: QueueProducer;
+  CHANNEL_INGESTION_QUEUE?: QueueProducer<ChannelIngestionQueueMessage>;
+  ANALYTICS_QUEUE?: QueueProducer<AnalyticsOpportunityQueueMessage>;
   YOUTUBE_API_KEY: string;
   YOUTUBE_MAX_RESULTS?: string;
   CHANNEL_INGESTION_FRESHNESS_SECONDS?: string;
@@ -71,6 +70,9 @@ export default {
             maxResults,
             channelFreshnessMs,
             ingestionClaimTtlMs,
+            enqueueAnalytics: env.ANALYTICS_QUEUE
+              ? (analyticsMessage) => env.ANALYTICS_QUEUE!.send(analyticsMessage)
+              : undefined,
             enqueueChannelIngestion: env.CHANNEL_INGESTION_QUEUE
               ? (channelMessage) => env.CHANNEL_INGESTION_QUEUE!.send(channelMessage)
               : undefined,

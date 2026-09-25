@@ -14,8 +14,8 @@ export type VideoOutlierScore = {
 export const scoreVideoOutlier = (input: VideoOutlierInput): VideoOutlierScore | null => {
   if (input.videoViews <= 0n || input.channelViews <= 0n || input.channelVideos <= 0n) return null;
 
-  // MVP baseline: lifetime channel views / published videos. Case 07 replaces this
-  // with observation-window baselines without changing the opportunity contract.
+  // MVP baseline: lifetime channel views / published videos. It remains the production
+  // model until a separately approved historical algorithm explicitly supersedes it.
   const baselineViews = input.channelViews / input.channelVideos;
   if (baselineViews <= 0n) return null;
 
